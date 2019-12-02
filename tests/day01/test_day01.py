@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from ddt import unpack, data, ddt
+from ddt import data, ddt, unpack
 
 from days.day01.day01 import part1, part2
 
