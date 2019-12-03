@@ -1,71 +1,42 @@
+import itertools
 from typing import List
 
+from days.day02.intcode_computer import IntcodeComputer
 from helpers import read_raw_entries
 
 
-class IntcodeComputer:
-    def __init__(self, instructions: List[int]):
-        self.initial_memory = instructions[:]
-        self.memory = instructions[:]  # memory
-        self.instruction_pointer = 0
-
-    def run(self):
-        while self.step():
-            pass
-
-    def reset(self):
-        self.instruction_pointer = 0
-        self.memory = self.initial_memory[:]
-
-    def get_zero(self) -> int:
-        return self.memory[0]
-
-    def step(self) -> bool:
-        cur = self.memory[self.instruction_pointer]
-        if cur == 1:
-            a = self.memory[self.instruction_pointer + 1]
-            b = self.memory[self.instruction_pointer + 2]
-            target = self.memory[self.instruction_pointer + 3]
-            self.memory[target] = self.memory[a] + self.memory[b]
-            self.instruction_pointer += 4
-            return True
-        elif cur == 2:
-            a = self.memory[self.instruction_pointer + 1]
-            b = self.memory[self.instruction_pointer + 2]
-            target = self.memory[self.instruction_pointer + 3]
-            self.memory[target] = self.memory[a] * self.memory[b]
-            self.instruction_pointer += 4
-            return True
-        elif cur == 99:
-            return False
-        else:
-            raise Exception(f"Oops, bad instruction {cur} at index {self.instruction_pointer}")
-
-
-def part1(instructions):
-    instructions[1] = 12
-    instructions[2] = 2
+# Here we just run the IntcodeComputer until it quits,
+# then read the value in the zero index in memory
+def part1(instructions: List[int]):
     ic = IntcodeComputer(instructions)
+    ic.set_noun(12)
+    ic.set_verb(2)
     ic.run()
-    print(f"Part 1: 1202 => {ic.get_zero()}")
+    return ic.get_zero()
 
 
-def part2(instructions):
+# Here we're gonna try every combo of numbers from 0 to 99
+# and after each run of the ic completes, check if the zero
+# index in memory holds the magic target number. When it does,
+# return that value
+def part2(instructions: List[int]):
     ic = IntcodeComputer(instructions)
 
-    for one in range(0, 100):
-        for two in range(0, 100):
-            ic.reset()
-            ic.memory[1] = one
-            ic.memory[2] = two
-            ic.run()
-            if ic.get_zero() == 19690720:
-                print(f"Part 2: {one}{two} => 19690720")
-                return
+    for noun, verb in itertools.product(range(100), repeat=2):
+        ic.reset()
+        ic.set_noun(noun)
+        ic.set_verb(verb)
+        ic.run()
+        if ic.get_zero() == 19690720:
+            return noun * 100 + verb
 
 
 if __name__ == "__main__":
     lines = read_raw_entries("input02.txt")
     raw_instructions = list(map(lambda x: int(x), lines[0].split(",")))
-    part1(raw_instructions[:])
-    part2(raw_instructions[:])
+
+    part1 = part1(raw_instructions[:])
+    print(f"Part 1: 1202 => {part1}")
+
+    part2 = part2(raw_instructions[:])
+    print(f"Part 2: {part2} => 19690720")

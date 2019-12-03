@@ -1,8 +1,9 @@
+from typing import List
 from unittest import TestCase
 
 from ddt import data, ddt, unpack
 
-from days.day02.day02 import IntcodeComputer
+from days.day02.intcode_computer import IntcodeComputer
 
 
 @ddt
@@ -22,7 +23,7 @@ class TestDay02(TestCase):
          [30, 1, 1, 4, 2, 5, 6, 0, 99]]
     )
     @unpack
-    def test_part_1(self, expected_in_zero, instructions, final_memory):
+    def test_part_1(self, expected_in_zero: int, instructions: List[int], final_memory: List[int]):
         ic = IntcodeComputer(instructions)
         ic.run()
         self.assertEqual(expected_in_zero, ic.get_zero())

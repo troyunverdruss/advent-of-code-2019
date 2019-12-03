@@ -3,3 +3,4 @@
 *.gml
 *.pyc
 tmp
+.mypy_cache
