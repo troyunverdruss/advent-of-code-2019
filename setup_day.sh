@@ -20,7 +20,7 @@ from unittest import TestCase
 from ddt import data, ddt, unpack
 
 @ddt
-class TestDay"$1"(TestCase):
+class TestDay$1(TestCase):
     @data(
         []
     )

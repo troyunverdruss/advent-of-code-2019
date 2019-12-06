@@ -1,7 +1,7 @@
 from unittest import TestCase
 from ddt import data, ddt, unpack
 
-from days.day03.day03 import solve, parse_input
+from days.day03.day03 import solve_by_gridding, parse_input, solve_with_sets
 
 
 @ddt
@@ -15,7 +15,8 @@ class TestDay03(TestCase):
     def test_part_1(self, line_a, line_b, expected_distance):
         parsed_a = parse_input(line_a)
         parsed_b = parse_input(line_b)
-        self.assertEqual(expected_distance, solve(parsed_a, parsed_b)[0])
+        self.assertEqual(expected_distance, solve_by_gridding(parsed_a, parsed_b)[0])
+        self.assertEqual(expected_distance, solve_with_sets(parsed_a, parsed_b)[0])
 
     @data(
         ["R8,U5,L5,D3", "U7,R6,D4,L4", 30],
@@ -26,4 +27,4 @@ class TestDay03(TestCase):
     def test_part_2(self, line_a, line_b, expected_distance):
         parsed_a = parse_input(line_a)
         parsed_b = parse_input(line_b)
-        self.assertEqual(expected_distance, solve(parsed_a, parsed_b)[1])
+        self.assertEqual(expected_distance, solve_by_gridding(parsed_a, parsed_b)[1])
