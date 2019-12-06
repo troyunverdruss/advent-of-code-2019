@@ -3,19 +3,14 @@ from collections import defaultdict
 from helpers import Point, manhattan_distance, read_raw_entries
 
 # For each key, what does it mean in coordinate space
-dirs = {
-    "U": Point(0, 1),
-    "L": Point(-1, 0),
-    "R": Point(1, 0),
-    "D": Point(0, -1)
-}
+dirs = {"U": Point(0, 1), "L": Point(-1, 0), "R": Point(1, 0), "D": Point(0, -1)}
 
 
 # Since both solutions require laying out the entire path for line A and
 # then laying out path B on top of it, solve for both at once.
 # Returns a tuple:
 # [distance to closest to origin, sum of distances of wire to first collision]
-def solve(_line_a, _line_b):
+def solve_by_gridding(_line_a, _line_b):
     # Set up some defaults, use a defaultdict so we always have a value if we reference it
     grid = defaultdict(lambda: "_")
     origin = Point(0, 0)
@@ -59,7 +54,10 @@ def solve(_line_a, _line_b):
             if grid[position].startswith("A"):
                 collisions.append(
                     # tuple: point, sum of points intersection
-                    (Point(position.x, position.y), step_count_b + int(grid[position][1:]))
+                    (
+                        Point(position.x, position.y),
+                        step_count_b + int(grid[position][1:]),
+                    )
                 )
                 grid[position] = "X"
             elif grid[position].startswith("B"):
@@ -68,12 +66,45 @@ def solve(_line_a, _line_b):
                 grid[position] = f"B{step_count_b}"
 
     # map over the collisions and get the distances to each point tuple index 0, the find the min
-    closest_to_origin = min(map(lambda _tuple: manhattan_distance(origin, _tuple[0]), collisions))
+    closest_to_origin = min(
+        map(lambda _tuple: manhattan_distance(origin, _tuple[0]), collisions)
+    )
 
     # map over the answers collisions and get the lowest sum from the tuple's index 1 position
     shortest_distance_by_wire = min(map(lambda _tuple: _tuple[1], collisions))
 
     # Return the answers!
+    return closest_to_origin, shortest_distance_by_wire
+
+
+def gen_path_map(_line):
+    position = Point(0, 0)
+    path = {}
+
+    step_count = 0
+    for direction in _line:
+        _dir = direction[:1]
+        num = int(direction[1:])
+
+        for _ in range(num):
+            step_count += 1
+            position = position + dirs[_dir]
+            if position not in path:
+                path[position] = step_count
+    return path
+
+
+def solve_with_sets(_line_a, _line_b):
+    a_map = gen_path_map(_line_a)
+    b_map = gen_path_map(_line_b)
+
+    intersection = set(a_map.keys()).intersection(set(b_map.keys()))
+    closest_to_origin = min(
+        map(lambda x: manhattan_distance(Point(0, 0), x), (p for p in intersection))
+    )
+
+    shortest_distance_by_wire = min((a_map[p] + b_map[p] for p in intersection))
+
     return closest_to_origin, shortest_distance_by_wire
 
 
@@ -86,6 +117,6 @@ if __name__ == "__main__":
     line_a = parse_input(lines[0])
     line_b = parse_input(lines[1])
 
-    part1, part2 = solve(line_a, line_b)
+    part1, part2 = solve_by_gridding(line_a, line_b)
     print(f"Part 1: {part1}")
     print(f"Part 2: {part2}")
