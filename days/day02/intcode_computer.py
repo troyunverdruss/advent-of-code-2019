@@ -42,17 +42,31 @@ class InstructionData:
 # ic.get_zero()
 # ic.reset()
 class IntcodeComputer:
-    def __init__(self, instructions: List[int]):
+    def __init__(self, instructions: List[int], _id=""):
+        self.id = _id
         self.initial_memory = instructions[:]
         self.memory = instructions[:]  # memory
         self.instruction_pointer = 0
         self.inputs = deque()
         self.outputs = deque()
         self.enable_stdout = False
+        self.running = False
+        self.waiting = False
+
+    def __str__(self):
+        return f"ID: {self.id} Running: {self.running} Waiting: {self.waiting} " \
+               f"Inputs: {self.inputs} Outputs: {self.outputs}"
 
     def run(self):
-        while self.step():
+        self.running = True
+        while self.step() and not self.waiting:
             pass
+
+    def is_running(self):
+        return self.running
+
+    def is_waiting(self):
+        return self.waiting
 
     def reset(self):
         self.instruction_pointer = 0
@@ -92,17 +106,22 @@ class IntcodeComputer:
             self.instruction_pointer += 4
             return True
         elif instruction.instruction == 3:
-            _input = self.inputs.popleft()
-            param_1 = self.memory[self.instruction_pointer + 1]
-            self.memory[param_1] = _input
-            self.instruction_pointer += 2
+            if len(self.inputs) == 0:
+                self.waiting = True
+                if self.enable_stdout:
+                    print(f"{self.id} Started waiting")
+            else:
+                _input = self.inputs.popleft()
+                param_1 = self.memory[self.instruction_pointer + 1]
+                self.memory[param_1] = _input
+                self.instruction_pointer += 2
             return True
         elif instruction.instruction == 4:
             param_1 = self.memory[self.instruction_pointer + 1]
             value_at_param_1 = self.memory[param_1]
             self.outputs.append(value_at_param_1)
             if self.enable_stdout:
-                print(value_at_param_1)
+                print(f"{self.id} Output: {value_at_param_1}")
             self.instruction_pointer += 2
             return True
         elif instruction.instruction == 5:
@@ -149,6 +168,7 @@ class IntcodeComputer:
             return True
 
         elif instruction.instruction == 99:
+            self.running = False
             return False
         else:
             raise Exception(
