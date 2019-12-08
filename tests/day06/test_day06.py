@@ -19,7 +19,7 @@ class TestDay06(TestCase):
             "K)L",
         ]
 
-        self.assertEqual(part1(lines), 42)
+        self.assertEqual(42, part1(lines))
 
     def test_part1_simple(self):
         lines = [
@@ -27,7 +27,7 @@ class TestDay06(TestCase):
             "COM)AAA"
         ]
 
-        self.assertEqual(part1(lines), 3)
+        self.assertEqual(3, part1(lines))
 
     def test_part2_with_search(self):
         lines = [
@@ -46,7 +46,7 @@ class TestDay06(TestCase):
             "I)SAN"
         ]
 
-        self.assertEqual(part2_with_search(lines), 4)
+        self.assertEqual(4, part2_with_search(lines))
 
     def test_part2_with_sets(self):
         lines = [
@@ -65,4 +65,4 @@ class TestDay06(TestCase):
             "I)SAN"
         ]
 
-        self.assertEqual(part2_with_sets(lines), 4)
+        self.assertEqual(4, part2_with_sets(lines))
