@@ -34,6 +34,9 @@ class InstructionData:
 # For different opcodes, it does different things:
 # 1 = add
 # 2 = multiply
+# 3 = input
+# 4 = output
+# 5 =
 # 99 = exit
 #
 # Use it like so:
