@@ -1,4 +1,7 @@
 from collections import defaultdict
+from typing import Dict, List
+
+from PIL import Image, ImageDraw
 
 from helpers import Point, manhattan_distance, read_raw_entries
 
@@ -77,7 +80,10 @@ def solve_by_gridding(_line_a, _line_b):
     return closest_to_origin, shortest_distance_by_wire
 
 
-def gen_path_map(_line):
+# This is a helper method to take a list of the inputs and place them
+# into a dict with points as keys, and distance from origin as values.
+# Used elsewhere to simplify setup
+def gen_path_map(_line: List[int]) -> Dict[Point, int]:
     position = Point(0, 0)
     path = {}
 
@@ -94,6 +100,11 @@ def gen_path_map(_line):
     return path
 
 
+# Woke up with this much simpler solution, so hacked it out. Instead
+# of tracing the lines during mapping and recording the collisions,
+# just get the entire paths and then get the set intersection. Those
+# are all the possible collisions, then it's just a matter of finding
+# the closest to origin and the shortest distance by wire
 def solve_with_sets(_line_a, _line_b):
     a_map = gen_path_map(_line_a)
     b_map = gen_path_map(_line_b)
@@ -108,6 +119,57 @@ def solve_with_sets(_line_a, _line_b):
     return closest_to_origin, shortest_distance_by_wire
 
 
+# Playing around with some visualization here, basically just taking
+# the paths and writing them one-to-one into a giant image canvas. Not
+# exactly efficient ... but easy! Then since the resulting file is gigantic,
+# I scale it down by a factor of 4 before writing it out
+def write_image_of_wires(_line_a: List[int], _line_b: List[int]):
+    a_map = gen_path_map(_line_a)
+    b_map = gen_path_map(_line_b)
+
+    # Get the bounds of the wires
+    min_x = min(a_map.keys() | b_map.keys(), key=lambda p: p.x).x
+    max_x = max(a_map.keys() | b_map.keys(), key=lambda p: p.x).x
+    min_y = min(a_map.keys() | b_map.keys(), key=lambda p: p.y).y
+    max_y = max(a_map.keys() | b_map.keys(), key=lambda p: p.y).y
+
+    # Figure out where the origin should be, this will be where we
+    # reference all the other points. Doing it this way makes it so we
+    # don't have the origin centered and with a heavily skewed drawing
+    # to one quadrant of the axes
+    image_origin = Point(50 + abs(min_x), 50 + abs(min_y))
+
+    # Set up our image canvas
+    image = Image.new("RGBA", (abs(min_x) + abs(max_x) + 100, abs(min_y) + abs(max_y) + 100), "black")
+    image_draw = ImageDraw.Draw(image)
+
+    # Configurable, needs to be multiple of 2
+    line_width = 8
+
+    # Draw line A points
+    for p in a_map.keys():
+        image_draw.rectangle((image_origin.x + p.x - line_width / 2, image_origin.y + p.y - line_width / 2,
+                              image_origin.x + p.x + line_width / 2, image_origin.y + p.y + line_width / 2),
+                             fill="blue")
+    # Draw line B points
+    for p in b_map.keys():
+        image_draw.rectangle((image_origin.x + p.x - line_width / 2, image_origin.y + p.y - line_width / 2,
+                              image_origin.x + p.x + line_width / 2, image_origin.y + p.y + line_width / 2),
+                             fill="orange")
+    # Draw collision points
+    for p in a_map.keys() & b_map.keys():
+        image_draw.rectangle((image_origin.x + p.x - line_width, image_origin.y + p.y - line_width,
+                              image_origin.x + p.x + line_width, image_origin.y + p.y + line_width),
+                             fill="purple")
+    # Draw the origin
+    image_draw.rectangle((image_origin.x - line_width * 2, image_origin.y - line_width * 2,
+                          image_origin.x + line_width * 2, image_origin.y + line_width * 2), fill="white")
+
+    # Resize + save
+    small_image = image.resize((image.size[0] // 4, image.size[1] // 4))
+    small_image.save("wire_map.png")
+
+
 def parse_input(line):
     return line.split(",")
 
@@ -120,3 +182,5 @@ if __name__ == "__main__":
     part1, part2 = solve_by_gridding(line_a, line_b)
     print(f"Part 1: {part1}")
     print(f"Part 2: {part2}")
+
+    write_image_of_wires(line_a, line_b)

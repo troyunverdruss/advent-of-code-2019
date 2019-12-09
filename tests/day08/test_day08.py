@@ -1,7 +1,6 @@
 from unittest import TestCase
-from ddt import data, ddt, unpack
 
-from days.day08.day08 import part1, part2_read_into_buffer
+from days.day08.day08 import part1, part2_read_into_buffer, write_buffer_to_image
 
 
 class TestDay08(TestCase):
@@ -16,3 +15,14 @@ class TestDay08(TestCase):
         self.assertEqual(1, buffer[(1, 0)])
         self.assertEqual(1, buffer[(0, 1)])
         self.assertEqual(0, buffer[(1, 1)])
+
+    def test_write_image(self):
+        buffer = {
+            (0, 0): 0,
+            (1, 0): 1,
+            (2, 0): 2,
+            (0, 1): 2,
+            (1, 1): 0,
+            (2, 1): 1,
+        }
+        write_buffer_to_image(3, 2, buffer, "day08/test_image.png")
