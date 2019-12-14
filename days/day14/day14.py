@@ -61,14 +61,16 @@ def parse_lines(_lines):
 
 def part1(lines):
     reaction_steps, ore_producers = parse_lines(lines)
-    needed_inputs = find_inputs(reaction_steps, ore_producers, "FUEL", 1)
+    needed_inputs = find_inputs(
+        reaction_steps, ore_producers, "FUEL", 1, defaultdict(lambda: 0)
+    )
 
     print(needed_inputs)
 
     ore = 0
     for k in needed_inputs.keys():
         multiplier = 1
-        while ore_producers[k].reaction_out.quantity * multiplier < needed_inputs[k] :
+        while ore_producers[k].reaction_out.quantity * multiplier < needed_inputs[k]:
             multiplier += 1
         # multiplier = int(math.ceil(float(needed_inputs[k])/float(ore_producers[k].reaction_in[0].quantity)))
 
@@ -79,20 +81,58 @@ def part1(lines):
     # 16302 too low
     # 201606 too low
     # 4867716 too high
+    # 2486514
 
 
-
-def find_inputs(reaction_steps: Dict[str, ReactionStep], ore_producers: Dict[str, ReactionStep], required_element: str,
-                quantity: int, indent=0):
-    print(f"{'  '* indent}Seeking {quantity} of element: {required_element}")
-    # base case is ORE?
-    # base case is maybe elements that can be created directly from ORE?
+def find_inputs_2(
+    reaction_steps: Dict[str, ReactionStep],
+    ore_producers: Dict[str, ReactionStep],
+    required_element: str,
+    quantity: int,
+    pool: Dict[str, int],
+    indent=0,
+):
     if required_element in ore_producers:
-        print(f"{'  '* indent}Required element is produced from ORE {required_element}: {quantity}")
+        total_produced = math.ceil(float(quantity / ore_producers[required_element].reaction_out.quantity))
+        extra = total_produced - quantity
+        pool[required_element] += extra
         return {required_element: quantity}
 
     if required_element == "ORE":
-        print(f"{'  '* indent}Required element is ORE")
+        raise Exception("require ORE, mistake?")
+
+    if pool[required_element] >= quantity:
+        pool[required_element] -= quantity
+        return {}
+
+
+
+
+
+def find_inputs(
+    reaction_steps: Dict[str, ReactionStep],
+    ore_producers: Dict[str, ReactionStep],
+    required_element: str,
+    quantity: int,
+    pool: Dict[str, int],
+    indent=0,
+):
+    # print(f"{'  ' * indent}Seeking {quantity} of element: {required_element}")
+    # base case is ORE?
+    # base case is maybe elements that can be created directly from ORE?
+    if required_element in ore_producers:
+        # print(
+        #     f"{'  ' * indent}Required element is produced from ORE {required_element}: {quantity}"
+        # )
+        return {required_element: quantity}
+
+    if required_element == "ORE":
+        # print(f"{'  ' * indent}Required element is ORE")
+        raise Exception()
+        return {}
+
+    if pool[required_element] >= quantity:
+        pool[required_element] -= quantity
         return {}
 
     # This will be a running tally
@@ -103,16 +143,51 @@ def find_inputs(reaction_steps: Dict[str, ReactionStep], ore_producers: Dict[str
     # multiplier = int(math.ceil(float(reaction.reaction_out.quantity)/float(quantity)))
 
     multiplier = 1
-    while reaction.reaction_out.quantity * multiplier < quantity:
+    while (
+        reaction.reaction_out.quantity * multiplier
+        + pool[reaction.reaction_out.element]
+        < quantity
+    ):
         multiplier += 1
 
+    # take out of the pool as much as necessary
+    to_create = reaction.reaction_out.quantity * multiplier
+    if to_create > quantity:
+        pool[reaction.reaction_out.element] += to_create - quantity
+    else:
+        to_sub = quantity - to_create
+        pool[reaction.reaction_out.element] -= to_sub
+
+    # new_val = quantity - (reaction.reaction_out.quantity * multiplier + pool[reaction.reaction_out.element])
+    # new_val = max(new_val, 0)
+    # pool[reaction.reaction_out.element] = new_val
+
+    # deduct from the pool
+    print("pool:")
+    for e in filter(lambda e: e[1] != 0, pool.items()):
+        print(e)
 
     for el_in in reaction.reaction_in:
-        found_required = find_inputs(reaction_steps, ore_producers, el_in.element, multiplier * el_in.quantity, indent + 1)
+        # 1 in the pool
+        # i need 9
+        #
+
+        # amount_needed = quantity - (multiplier * el_in.quantity + pool[el_in.element])
+
+        found_required = find_inputs(
+            reaction_steps,
+            ore_producers,
+            el_in.element,
+            multiplier * el_in.quantity,
+            pool,
+            indent + 1,
+        )
         for k in found_required:
-            print(f"{'  '* indent}Will be provided by {found_required[k]} {k}")
+            # print(f"{'  ' * indent}Will be provided by {found_required[k]} {k}")
             required_in[k] += found_required[k]
 
+    print(f"required in: {required_in}")
+    print(f"pool: {pool}")
     return required_in
 
 
