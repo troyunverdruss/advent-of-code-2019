@@ -1,6 +1,6 @@
 import enum
 from collections import deque, defaultdict
-from typing import List
+from typing import List, Dict
 
 
 class Modes(enum.Enum):
@@ -46,24 +46,22 @@ class InstructionData:
 # Use it like so:
 # ic = IntcodeComputer([your instructions as ints])
 # ic.run()
-# ic.get_zero()
-# ic.reset()
 class IntcodeComputer:
-    def __init__(self, instructions: List[int], _id=""):
+    def __init__(self, instructions: List[int], _id: str = ""):
         self.id = _id
-        self.initial_memory = instructions[:]
         self.memory = defaultdict(lambda: 0)
         for index, v in enumerate(instructions):
             self.memory[index] = v
 
-        # instructions[:]  # memory
         self.instruction_pointer = 0
+        self.relative_base = 0
+
         self.inputs = deque()
         self.outputs = deque()
-        self.enable_stdout = False
+
         self.running = False
         self.waiting = False
-        self.relative_base = 0
+        self.enable_stdout = False
 
     def __str__(self):
         return f"ID: {self.id} Running: {self.running} Waiting: {self.waiting} " \
@@ -71,38 +69,23 @@ class IntcodeComputer:
 
     def run(self):
         self.running = True
-        count = 0
         while self.step() and not self.waiting:
-            count += 1
-            if self.enable_stdout:
-                print(f"iteration: {count}. {self.instruction_pointer}. {self.memory[self.instruction_pointer]} {self.memory[self.instruction_pointer+1]} {self.memory[self.instruction_pointer+2]} {self.memory[self.instruction_pointer+3]}")
-                # print(f"mem: {map(lambda i: "{i[0]}: {i[1]}", sorted(self.memory.items(), key=lambda i: i[0])}")
             pass
 
-    def is_running(self):
-        return self.running
-
-    def is_waiting(self):
-        return self.waiting
-
-    def reset(self):
-        self.instruction_pointer = 0
-        self.memory = self.initial_memory[:]
-
-    def set_noun(self, noun):
+    def set_noun(self, noun: int):
         self.memory[1] = noun
 
-    def set_verb(self, verb):
+    def set_verb(self, verb: int):
         self.memory[2] = verb
 
-    def set_inputs(self, _inputs):
+    def set_inputs(self, _inputs: List[int]):
         self.inputs.extend(_inputs)
-
-    def get_zero(self) -> int:
-        return self.memory[0]
 
     def get_outputs(self):
         return self.outputs
+
+    def get_all_non_zero_memory(self) -> Dict[int, int]:
+        return {k: v for k, v in filter(lambda e: e[1] != 0, self.memory.items())}
 
     def step(self) -> bool:
         raw_instruction_value = self.memory[self.instruction_pointer]
@@ -114,15 +97,10 @@ class IntcodeComputer:
         if instruction.instruction == 1:
             param_1 = self.get_parameter_value(0, instruction)
             param_2 = self.get_parameter_value(1, instruction)
-
-            # if instruction.get_parameter_mode(2) == Modes.POSITION:
-            target = self.get_parameter_value(2, instruction, True)# self.memory[self.instruction_pointer + 3]
-            # else:
-            #     target = self.memory[self.instruction_pointer + 3] + self.relative_base #self.memory[self.instruction_pointer + 3]
+            target = self.get_target_value(2, instruction)
 
             self.memory[target] = param_1 + param_2
-            if self.enable_stdout:
-                print(f"{raw_instruction_value} {instruction}. add. mem[{target}] = {param_1} + {param_2}")
+
             self.instruction_pointer += 4
             return True
 
@@ -130,10 +108,10 @@ class IntcodeComputer:
         elif instruction.instruction == 2:
             param_1 = self.get_parameter_value(0, instruction)
             param_2 = self.get_parameter_value(1, instruction)
-            target = self.get_parameter_value(2, instruction, True)
+            target = self.get_target_value(2, instruction)
+
             self.memory[target] = param_1 * param_2
-            if self.enable_stdout:
-                print(f"{raw_instruction_value} {instruction}. mul.  mem[{target}] = {param_1} * {param_2}")
+
             self.instruction_pointer += 4
             return True
 
@@ -141,33 +119,23 @@ class IntcodeComputer:
         elif instruction.instruction == 3:
             if len(self.inputs) == 0:
                 self.waiting = True
+
                 if self.enable_stdout:
                     print(f"{self.id} Started waiting")
             else:
-                _input = self.inputs.popleft()
-                # param_1 = self.memory[self.instruction_pointer + 1]
-                target = self.get_parameter_value(0, instruction, True)
-                # param_1 = self.get_parameter_value(0, instruction) # self.memory[self.instruction_pointer + 1]
-                self.memory[target] = _input
-                # if instruction.get_parameter_mode(0) == Modes.POSITION:
-                #     self.memory[param_1] = _input
-                # elif instruction.get_parameter_mode(0) == Modes.RELATIVE:
-                #     self.memory[param_1 + self.relative_base] = _input
-                # else:
-                #     raise Exception("Bad mode for input instruction")
+                target = self.get_target_value(0, instruction)
 
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. in. mem[{target}] = from input: {_input}")
+                self.memory[target] = self.inputs.popleft()
+
                 self.instruction_pointer += 2
             return True
 
         # output
         elif instruction.instruction == 4:
             param_1 = self.get_parameter_value(0, instruction)
-            # value_at_param_1 = self.memory[param_1]
+
             self.outputs.append(param_1)
-            if self.enable_stdout:
-                print(f"{raw_instruction_value} {self.id} Output: {param_1}")
+
             self.instruction_pointer += 2
             return True
 
@@ -178,11 +146,7 @@ class IntcodeComputer:
 
             if param_1 != 0:
                 self.instruction_pointer = param_2
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. jit. inst_pointer = {param_1}!=0 => {param_2}")
             else:
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. jit. not jumping = {param_1}==0 => {param_2}")
                 self.instruction_pointer += 3
             return True
 
@@ -193,11 +157,7 @@ class IntcodeComputer:
 
             if param_1 == 0:
                 self.instruction_pointer = param_2
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. jif. inst_pointer = {param_1}==0 => {param_2}")
             else:
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. jif. not jumping = {param_1}!=0 => {param_2}")
                 self.instruction_pointer += 3
             return True
 
@@ -205,16 +165,12 @@ class IntcodeComputer:
         elif instruction.instruction == 7:
             param_1 = self.get_parameter_value(0, instruction)
             param_2 = self.get_parameter_value(1, instruction)
-            target = self.get_parameter_value(2, instruction, True)
+            target = self.get_target_value(2, instruction)
 
             if param_1 < param_2:
                 self.memory[target] = 1
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. lt. mem[{target}] = 1")
             else:
                 self.memory[target] = 0
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. lt. mem[{target}] = 0")
 
             self.instruction_pointer += 4
             return True
@@ -223,16 +179,12 @@ class IntcodeComputer:
         elif instruction.instruction == 8:
             param_1 = self.get_parameter_value(0, instruction)
             param_2 = self.get_parameter_value(1, instruction)
-            target = self.get_parameter_value(2, instruction, True)
+            target = self.get_target_value(2, instruction)
 
             if param_1 == param_2:
                 self.memory[target] = 1
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. eq. mem[{target}] = 1")
             else:
                 self.memory[target] = 0
-                if self.enable_stdout:
-                    print(f"{raw_instruction_value} {instruction}. eq. mem[{target}] = 0")
 
             self.instruction_pointer += 4
             return True
@@ -242,23 +194,23 @@ class IntcodeComputer:
             param_1 = self.get_parameter_value(0, instruction)
 
             self.relative_base += param_1
-            if self.enable_stdout:
-                print(f"{raw_instruction_value} {instruction}. rel_base = {param_1}")
 
             self.instruction_pointer += 2
             return True
+
         # exit / halt
         elif instruction.instruction == 99:
-            if self.enable_stdout:
-                print(f"{raw_instruction_value} {instruction}. halt")
             self.running = False
             return False
+
+        # uh oh
         else:
             raise Exception(
                 f"Oops, bad instruction {raw_instruction_value} at index {self.instruction_pointer}"
             )
 
-    def parse_instruction(self, raw_value) -> InstructionData:
+    @staticmethod
+    def parse_instruction(raw_value) -> InstructionData:
         chars = list(str(raw_value))
         data = InstructionData()
 
@@ -283,17 +235,9 @@ class IntcodeComputer:
 
         return data
 
-    def get_parameter_value(self, param_id, instruction, target_mode=False):
+    def get_parameter_value(self, param_id, instruction):
         mode = instruction.get_parameter_mode(param_id)
         v = self.memory[self.instruction_pointer + 1 + param_id]
-
-        if target_mode:
-            if mode == Modes.POSITION:
-                return v
-            elif mode == Modes.IMMEDIATE:
-                raise Exception("immediate mode is unsupported for target mode ")
-            elif mode == Modes.RELATIVE:
-                return v + self.relative_base
 
         if mode == Modes.POSITION:
             return self.memory[v]
@@ -301,3 +245,14 @@ class IntcodeComputer:
             return v
         elif mode == Modes.RELATIVE:
             return self.memory[self.relative_base + v]
+
+    def get_target_value(self, param_id, instruction):
+        mode = instruction.get_parameter_mode(param_id)
+        v = self.memory[self.instruction_pointer + 1 + param_id]
+
+        if mode == Modes.POSITION:
+            return v
+        elif mode == Modes.IMMEDIATE:
+            raise Exception("IMMEDIATE mode is unsupported for getting target values")
+        elif mode == Modes.RELATIVE:
+            return v + self.relative_base

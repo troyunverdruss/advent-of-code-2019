@@ -12,7 +12,7 @@ def part1(instructions: List[int]):
     ic.set_noun(12)
     ic.set_verb(2)
     ic.run()
-    return ic.get_zero()
+    return ic.memory[0]
 
 
 # Here we're gonna try every combo of numbers from 0 to 99
@@ -20,14 +20,13 @@ def part1(instructions: List[int]):
 # index in memory holds the magic target number. When it does,
 # return that value
 def part2(instructions: List[int]):
-    ic = IntcodeComputer(instructions)
 
     for noun, verb in itertools.product(range(100), repeat=2):
-        ic.reset()
+        ic = IntcodeComputer(instructions)
         ic.set_noun(noun)
         ic.set_verb(verb)
         ic.run()
-        if ic.get_zero() == 19690720:
+        if ic.memory[0] == 19690720:
             return noun * 100 + verb
 
 

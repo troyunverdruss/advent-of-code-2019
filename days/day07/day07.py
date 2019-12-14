@@ -66,7 +66,7 @@ def run_part2_with_permutation(instructions, permutation):
     # still "running". So as long as any of the ics are running, keep churning through.
     # An ic in a "paused" state won't proceed to do anything until it has received input
     # so you can call run() on it as many times as you want
-    while start or any(map(lambda c: c.is_running(), ics)):
+    while start or any(map(lambda c: c.running, ics)):
         # You can only start once
         start = False
 
