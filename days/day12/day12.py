@@ -2,8 +2,10 @@ from collections import deque
 from dataclasses import dataclass
 from typing import List
 from helpers import read_raw_entries
-from itertools import combinations
+from itertools import combinations, islice
 import time
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 @dataclass
@@ -100,6 +102,7 @@ def part2(moons):
     seeking_repeat = {}
     sets_of_seen = {}
     states_of_seen = {}
+    point_series = {}
     _id = 0
     for m in moons:
         m.id = f"Moon {_id}"
@@ -109,6 +112,10 @@ def part2(moons):
         sets_of_seen[m.id].add(hash(m))
         seeking_repeat[m.id] = True
         states_of_seen[m.id].append(str(m))
+        point_series[m.id] = {}
+        point_series[m.id]['x'] = deque()
+        point_series[m.id]['y'] = deque()
+        point_series[m.id]['z'] = deque()
 
     seen = set()
     seeking = True
@@ -118,10 +125,24 @@ def part2(moons):
     count = 0
     while any(map(lambda m: seeking_repeat[m.id], moons)) or seeking:
         count += 1
-        if count % 1_000_000 == 0:
+        if count % 10000 == 0:
             now = time.time()
             print(f"Iteration {count}. Took {now - iter_start} seconds since last mark")
             iter_start = now
+
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+
+            slice_len = 1000
+            for m in moons:
+                ax.plot(list(islice(point_series[m.id]['x'], slice_len)),
+                        list(islice(point_series[m.id]['y'], slice_len)),
+                        list(islice(point_series[m.id]['z'], slice_len)),
+                        lw=0.1)
+                # break
+            fig.show()
+
+            i = 0
         do_step(moons)
 
         for m in moons:
@@ -132,6 +153,9 @@ def part2(moons):
             elif seeking_repeat[m.id]:
                 sets_of_seen[m.id].add(h)
                 states_of_seen[m.id].append(str(m))
+            point_series[m.id]['x'].append(m.loc.x)
+            point_series[m.id]['y'].append(m.loc.y)
+            point_series[m.id]['z'].append(m.loc.z)
 
         state = hash(tuple(map(lambda m: hash(m), moons)))
         if state in seen:
@@ -140,8 +164,11 @@ def part2(moons):
         seen.add(state)
 
     print(cycles_to_repeat)
-    for m in moons:
-        print(m)
+
+    for i in range(-3, 4):
+        print(f"--- {i} ---")
+        for mid in range(4):
+            print(states_of_seen[f"Moon {mid}"][i])
 
     return repeat
 
