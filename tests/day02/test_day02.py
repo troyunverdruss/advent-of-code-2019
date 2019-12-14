@@ -26,5 +26,8 @@ class TestDay02(TestCase):
     def test_part_1(self, expected_in_zero: int, instructions: List[int], final_memory: List[int]):
         ic = IntcodeComputer(instructions)
         ic.run()
-        self.assertEqual(expected_in_zero, ic.get_zero())
-        self.assertEqual(final_memory, ic.memory)
+        self.assertEqual(expected_in_zero, ic.memory[0])
+
+        # Had to change the internal memory structure, so need to map the array into a dict for comparison
+        var = {index: val for index, val in enumerate(final_memory)}
+        self.assertEqual(var, ic.memory)
