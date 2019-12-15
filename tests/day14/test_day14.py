@@ -15,7 +15,7 @@ class TestDay14(TestCase):
             "7 A, 1 E => 1 FUEL",
         ]
 
-        self.assertEqual(31, part1(lines))
+        self.assertEqual(31, part1(lines)[0])
 
     def test_part_1_modified_ex_1_to_waste(self):
         lines = [
@@ -27,7 +27,7 @@ class TestDay14(TestCase):
             "1 E, 1 F => 1 FUEL",
         ]
 
-        self.assertEqual(10, part1(lines))
+        self.assertEqual(10, part1(lines)[0])
 
     def test_part_1_ex_2(self):
         lines = [
@@ -40,7 +40,7 @@ class TestDay14(TestCase):
             "2 AB, 3 BC, 4 CA => 1 FUEL",
         ]
 
-        self.assertEqual(165, part1(lines))
+        self.assertEqual(165, part1(lines)[0])
 
     def test_part_1_ex_3(self):
         lines = [
@@ -55,7 +55,7 @@ class TestDay14(TestCase):
             "3 DCFZ, 7 NZVS, 5 HKGWZ, 10 PSHF => 8 KHKGT",
         ]
 
-        self.assertEqual(13312, part1(lines))
+        self.assertEqual(13312, part1(lines)[0])
 
     def test_part_2_ex_3(self):
         lines = [
@@ -91,7 +91,7 @@ class TestDay14(TestCase):
             "176 ORE => 6 VJHF",
         ]
 
-        self.assertEqual(180697, part1(lines))
+        self.assertEqual(180697, part1(lines)[0])
 
     def test_part_2_ex_4(self):
         lines = [
@@ -132,7 +132,7 @@ class TestDay14(TestCase):
             "5 BHXH, 4 VRPVC => 5 LTCX",
         ]
 
-        self.assertEqual(2210736, part1(lines))
+        self.assertEqual(2210736, part1(lines)[0])
 
     def test_part_2_ex_5(self):
         lines = [

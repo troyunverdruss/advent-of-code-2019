@@ -79,17 +79,55 @@ def part1(lines, fuel_count=None, leftover_pool=None):
     print("leftover pool", leftover_pool)
 
     ore = 0
+    unused_ore = 0
     for k in needed_inputs.keys():
-        multiplier = int(math.ceil(float(needed_inputs[k] / ore_producers[k].reaction_out.quantity)))
+        if leftover_pool[k] >= needed_inputs[k]:
+            leftover_pool[k] -= needed_inputs[k]
+            continue
+
+        min_multiplier = needed_inputs[k] // ore_producers[k].reaction_out.quantity
+        if min_multiplier * ore_producers[k].reaction_out.quantity < needed_inputs[k]:
+            if min_multiplier * ore_producers[k].reaction_out.quantity + leftover_pool[k] >= needed_inputs[k]:
+                # to_sub = quantity - (min_multiplier * reaction.reaction_out.quantity)
+                # pool[reaction.reaction_out.element] -= to_sub
+                pass
+            else:
+                min_multiplier += 1
+
+        multiplier = min_multiplier
+        # multiplier = 1
+        # while (
+        #         reaction.reaction_out.quantity * multiplier
+        #         + pool[reaction.reaction_out.element]
+        #         < quantity
+        # ):
+        #     multiplier += 1
+        #
+        # print(f"min_multiplier: {min_multiplier}, expected: {multiplier}")
+        #
+        # # take out of the pool as much as necessary
+        to_create = ore_producers[k].reaction_out.quantity * multiplier
+        if to_create > needed_inputs[k]:
+            leftover_pool[ore_producers[k].reaction_out.element] += to_create - needed_inputs[k]
+        else:
+            to_sub = needed_inputs[k] - to_create
+            leftover_pool[ore_producers[k].reaction_out.element] -= to_sub
+
+
+
+
+        # multiplier = int(math.ceil(float(needed_inputs[k] / ore_producers[k].reaction_out.quantity)))
         # multiplier = 1
         # while ore_producers[k].reaction_out.quantity * multiplier < needed_inputs[k]:
         #     multiplier += 1
         # multiplier = int(math.ceil(float(needed_inputs[k])/float(ore_producers[k].reaction_in[0].quantity)))
 
         ore += multiplier * ore_producers[k].reaction_in[0].quantity
+        leftover = (multiplier * ore_producers[k].reaction_out.quantity) - needed_inputs[k]
+        leftover_pool[k] += leftover
 
     print(ore)
-    return ore
+    return ore, unused_ore
     # 16302 too low
     # 201606 too low
     # 4867716 too high
@@ -98,26 +136,29 @@ def part1(lines, fuel_count=None, leftover_pool=None):
 
 def part2(lines):
     trillion = 1_000_000_000_000
-    approx_ore_per_one_fuel = part1(lines)
+    approx_ore_per_one_fuel = part1(lines)[0]
 
     ore_remaining = trillion
     count = 0
     leftover_pool = defaultdict(lambda: 0)
 
-    while ore_remaining // approx_ore_per_one_fuel > 0:
+    while ore_remaining // approx_ore_per_one_fuel > 100:
         fuel_to_create = ore_remaining // approx_ore_per_one_fuel
-        ore_used = part1(lines, fuel_to_create, leftover_pool)
+        ore_used, unused_ore = part1(lines, fuel_to_create, leftover_pool)
         if ore_used > ore_remaining:
             raise Exception()
         ore_remaining -= ore_used
+        ore_remaining += unused_ore
         count += fuel_to_create
 
     while ore_remaining > 0:
-        _used = part1(lines, 1, leftover_pool)
+        print(f"remaining: {ore_remaining}")
+        _used, _unused = part1(lines, 1, leftover_pool)
         if _used > ore_remaining:
             break
         else:
             ore_remaining -= _used
+            ore_remaining += _unused
             count += 1
 
     print(count)
