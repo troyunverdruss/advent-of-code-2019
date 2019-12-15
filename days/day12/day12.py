@@ -1,6 +1,7 @@
+import math
 from collections import deque
 from dataclasses import dataclass
-from typing import List
+from typing import List, Iterable
 from helpers import read_raw_entries
 from itertools import combinations, islice
 import time
@@ -39,6 +40,16 @@ class Moon:
 
     def __hash__(self):
         return hash(str(self))
+
+    def hash_by_axis(self, axis):
+        if axis == 'x':
+            return f"{self.loc.x} {self.vel.x}"
+        elif axis == 'y':
+            return f"{self.loc.y} {self.vel.y}"
+        elif axis == 'z':
+            return f"{self.loc.z} {self.vel.z}"
+        else:
+            raise Exception("unexpected axis: " + axis)
 
 
 @dataclass
@@ -98,79 +109,37 @@ def do_step(moons):
 def part2(moons):
     iter_start = time.time()
 
-    cycles_to_repeat = {}
-    seeking_repeat = {}
-    sets_of_seen = {}
-    states_of_seen = {}
-    point_series = {}
+    sets_of_seen_by_axis = {}
+    seeking_by_axis = {}
+
     _id = 0
     for m in moons:
         m.id = f"Moon {_id}"
         _id += 1
-        sets_of_seen[m.id] = set()
-        states_of_seen[m.id] = deque()
-        sets_of_seen[m.id].add(hash(m))
-        seeking_repeat[m.id] = True
-        states_of_seen[m.id].append(str(m))
-        point_series[m.id] = {}
-        point_series[m.id]['x'] = deque()
-        point_series[m.id]['y'] = deque()
-        point_series[m.id]['z'] = deque()
 
-    seen = set()
-    seeking = True
-    repeat = 0
-    seen.add(hash(tuple(map(lambda m: hash(m), moons))))
+    for axis in list('xyz'):
+        sets_of_seen_by_axis[axis] = set()
+        seeking_by_axis[axis] = True
 
-    count = 0
-    while any(map(lambda m: seeking_repeat[m.id], moons)) or seeking:
-        count += 1
-        if count % 10000 == 0:
-            now = time.time()
-            print(f"Iteration {count}. Took {now - iter_start} seconds since last mark")
-            iter_start = now
-
-            fig = plt.figure()
-            ax = fig.add_subplot(projection='3d')
-
-            slice_len = 1000
-            for m in moons:
-                ax.plot(list(islice(point_series[m.id]['x'], slice_len)),
-                        list(islice(point_series[m.id]['y'], slice_len)),
-                        list(islice(point_series[m.id]['z'], slice_len)),
-                        lw=0.1)
-                # break
-            fig.show()
-
-            i = 0
+    while any(seeking_by_axis.values()):
         do_step(moons)
 
-        for m in moons:
-            h = hash(m)
-            if h in sets_of_seen[m.id]:
-                seeking_repeat[m.id] = False
-                cycles_to_repeat[m.id] = count
-            elif seeking_repeat[m.id]:
-                sets_of_seen[m.id].add(h)
-                states_of_seen[m.id].append(str(m))
-            point_series[m.id]['x'].append(m.loc.x)
-            point_series[m.id]['y'].append(m.loc.y)
-            point_series[m.id]['z'].append(m.loc.z)
+        for axis in list('xyz'):
+            all_moons_one_axis_hash = hash(str(list(map(lambda m: m.hash_by_axis(axis), moons))))
+            if all_moons_one_axis_hash in sets_of_seen_by_axis[axis]:
+                seeking_by_axis[axis] = False
+            else:
+                sets_of_seen_by_axis[axis].add(all_moons_one_axis_hash)
+    lengths = list(map(lambda x: len(x), sets_of_seen_by_axis.values()))
+    return lcm(lengths)
 
-        state = hash(tuple(map(lambda m: hash(m), moons)))
-        if state in seen:
-            seeking = False
-            repeat = count
-        seen.add(state)
 
-    print(cycles_to_repeat)
-
-    for i in range(-3, 4):
-        print(f"--- {i} ---")
-        for mid in range(4):
-            print(states_of_seen[f"Moon {mid}"][i])
-
-    return repeat
+def lcm(numbers: List[int]):
+    _lcm = numbers[0]
+    for n in numbers[1:]:
+        _lcm = _lcm * n / math.gcd(_lcm, n)
+        _lcm = int(_lcm)
+    return _lcm
 
 
 def parse_input(lines: List[str]):
@@ -191,3 +160,5 @@ if __name__ == "__main__":
     _moons_2 = parse_input(raw_lines)
     part2 = part2(_moons_2)
     print(f"Part 2: {part2}")
+
+# 307_043_147_758_488
