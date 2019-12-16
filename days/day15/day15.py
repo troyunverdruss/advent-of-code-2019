@@ -1,5 +1,6 @@
 import heapq
 import sys
+import time
 from collections import deque, defaultdict
 from dataclasses import dataclass
 from typing import List
@@ -133,6 +134,7 @@ def part2(inst):
     #     print(e)
     #     print_buffer_to_console(grid)
 
+    t_start = time.time()
     longest_path = 0
     for p in map(lambda p: p[0], filter(lambda p: p[1] in list('.o'), grid.items())):
         #     path = nx.dijkstra_path(graph, oxygen_tank, p[0])
@@ -143,22 +145,26 @@ def part2(inst):
         path = nx.dijkstra_path(graph, oxygen_tank, p)
         longest_path = max(len(path) - 1, longest_path)
 
+    t_end = time.time()
+    print(f"Finding longest took {t_end - t_start}s")
     return longest_path
 
 
 def explore_everything(graph: nx.Graph, grid, robot):
-    _open = deque()
+    t_start = time.time()
+    _open = set()
     _closed = set()
     _closed.add(Point(0, 0))
 
-    initial_neighbors = neighbor_coords(robot.loc)
-    _open.extend(initial_neighbors)
+    for n in neighbor_coords(robot.loc):
+        _open.add(n)
 
     oxygen_tank = None
 
     while len(_open) > 0:
         # Get a destination
-        loc = _open.popleft()
+        loc = sorted(_open, key=lambda p: distance(robot.loc, p))[0]
+        _open.remove(loc)
         _closed.add(loc)
         if loc in grid and grid[loc] == '#':
             continue
@@ -190,12 +196,18 @@ def explore_everything(graph: nx.Graph, grid, robot):
         neighbors = neighbor_coords(loc)
         for n in neighbors:
             if n not in _open and n not in _closed:
-                _open.append(n)
+                _open.add(n)
 
-        print_buffer_to_console(grid, robot.loc, oxygen_tank)
+        # print_buffer_to_console(grid, robot.loc, oxygen_tank)
         # print("----------------------------")
 
     # all_pairs = nx.all_pairs_dijkstra_path(graph)
+    t_end = time.time()
+    print(f"done mapping. took {t_end - t_start}s")
+
+
+def distance(p1: Point, p2: Point):
+    return abs(p1.x - p2.x) + abs(p1.y - p2.y)
 
 
 def print_buffer_to_console(buffer, robot_loc, oxygen_tank):
