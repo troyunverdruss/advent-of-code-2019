@@ -1,9 +1,13 @@
-from dataclasses import dataclass
+# from dataclasses import dataclass
 from typing import List
+# from helpers import read_raw_entries
+import time
+
+
+# @dataclass
 from helpers import read_raw_entries
 
 
-@dataclass
 class SignalGenerator:
     n: int
     base_pattern: List[int]
@@ -41,24 +45,98 @@ def part1(initial_signal, count=100):
             sg = SignalGenerator()
             sg.n = i
             running_sum = 0
+            modifiers = []
+            new_digits = []
             for d in phase_input:
-                running_sum += d * next(sg.next())
+                modifier = next(sg.next())
+                modifiers.append(modifier)
+                running_sum += d * modifier
+                new_digits.append(d * modifier)
+            # print(''.join(map(lambda x: str(x).rjust(3), phase_input)), "  ->",
+            # print(''.join(map(lambda x: str(x).rjust(3), new_digits)), "   -> ", int(str(running_sum)[-1]))
+            # print(''.join(map(lambda x: str(x).rjust(3), modifiers)))
+            # print("")
+
+            # print(''.join(map(lambda x: str(x).rjust(3), phase_input)), "  ->",
+            #       ''.join(map(lambda x: str(x).rjust(3), phase_output)))
             phase_output.append(int(str(running_sum)[-1]))
-        # print(phase_output)
+
         phase_input = phase_output[:]
-    return ''.join(map(str, phase_input[0:8]))
+    return ' '.join(map(str, phase_input[0:8]))
+
+
+def part1_v2(initial_signal, iter_count=100):
+    signal_len = len(initial_signal)
+
+    phases = [None, None]
+    phases[0] = initial_signal[:]
+    phases[1] = initial_signal[:]
+
+    for count_id in range(iter_count):
+
+        src = count_id % 2
+        dst = (count_id + 1) % 2
+        last_dst = dst
+
+        take_n_skip_n(phases[src], phases[dst], repeat_length=signal_len)
+
+    final_dst = iter_count % 2
+    print("answer:", ' '.join(map(str, phases[final_dst][0:8])))
+    return ''.join(map(str, phases[0][0:8]))
+
+
+
+def take_n_skip_n(signal_in, signal_out, repeat_length):
+        signal_len = len(signal_in)
+        for n in range(1, signal_len + 1):
+            # print(f"{n}.", end="")
+            # if n % 1000 ==0:
+            #     print("")
+            total = 0
+            add = False
+            for index in range(n-1, signal_len, 2*n):
+                #print(f"  index: {index}")
+                add = not add
+                if add:
+                    total += sum(signal_in[index:min(index + n, signal_len)])
+                else:
+                    total -= sum(signal_in[index:min(index + n, signal_len)])
+                #print(f"  subtotal: {total}")
+            signal_out[n - 1] = abs(total) % 10
+            # print(f"count: {count_id}, n={n}")
+        #print(phases[0])
+        #print(phases[1])
+    # print("1:     ", ' '.join(map(str, phases[1][0:8])))
+    # print("answer:", ' '.join(map(str, phases[last_dst][0:8])))
+    # return ''.join(map(str, phases[0][0:8]))
 
 
 if __name__ == "__main__":
+    # lines="59772698208671263608240764571860866740121164692713197043172876418614411671204569068438371694198033241854293277505547521082227127768000396875825588514931816469636073669086528579846568167984238468847424310692809356588283194938312247006770713872391449523616600709476337381408155057994717671310487116607321731472193054148383351831456193884046899113727301389297433553956552888308567897333657138353770191097676986516493304731239036959591922009371079393026332649558536888902303554797360691183681625604439250088062481052510016157472847289467410561025668637527408406615316940050060474260802000437356279910335624476330375485351373298491579364732029523664108987"
+    # _initial_signal = list(map(int, list(lines)))
     _initial_signal = list(map(int, list(read_raw_entries("input16.txt")[0])))
-    part1res = part1(_initial_signal)
-    print(part1res)
+    # part1res = part1(_initial_signal)
+    # print(part1res)
+    res = part1_v2(_initial_signal)
+    print(res)
+
+    # part1res2 = take_n_skip_n(_initial_signal)
+    # print(part1res2)
+    
+    # offset=_initial_signal[:8]
+    # part2res = take_n_skip_n(_initial_signal*10000)
+    # print(part2res[offset:offset+8])
 
     # s = read_raw_entries("input16.txt")[0]
+    #s = '1234567890' * 65 * 10000
+    #s1 = list(map(int, list(s)))
+    #print(len(s1))
     # s1 = s * 10000
+    #sm = sum(s1)
+    #print(sm)
     # part2 = part1(list(map(int, list(s1))))
-    # _in = list(map(int, list("80871224585914546619083218645595")))
-    # part1(_in, 100)
+    # _in = list(map(int, list("123456781234567812345678")))
+    # print(part1(_in, 1))
     # sg = SignalGenerator()
     # sg.n = 8
     pass
