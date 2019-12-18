@@ -1,11 +1,10 @@
 from unittest import TestCase
 from ddt import data, ddt, unpack
 
-@ddt
+from days.day16.day16 import take_n_skip_n
+
+
 class TestDay16(TestCase):
-    @data(
-        []
-    )
-    @unpack
-    def test_part_1(self, test_input, expected):
-        self.assertEqual(expected, 0)
+    def test_ex_1(self):
+        _initial_signal = list(map(int, list("12345678")))
+        take_n_skip_n(_initial_signal, 4)
