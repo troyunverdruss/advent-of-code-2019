@@ -102,39 +102,79 @@ def part2(instructions, known_point: Point, size=100):
     if res != '#':
         raise Exception("Need to start from a known good point")
 
-    step = size
-    closest_point = None
-    to_test_x = known_point.x * step
-    to_test_y = known_point.y * step
-    while step > 0:
+    funnel_width_at_kp = find_width_at_xy(instructions, known_point.x, known_point.y)
+    multiplier = size // (funnel_width_at_kp[1] - funnel_width_at_kp[0])
 
+    to_test_x = known_point.x * multiplier
+    to_test_y = known_point.y * multiplier
+
+    get_starting_point = True
+    while get_starting_point:
+        # We're not even *wide* enough here, let's jump again
+        min_x, max_x = find_width_at_xy(instructions, to_test_x, to_test_y)
+        if max_x - min_x < size:
+            to_test_x += known_point.x * 2
+            to_test_y += known_point.y * 2
+            continue
+
+        # We're not even *tall* enough here, let's jump again
+        min_y, max_y = find_height_at_xy(instructions, to_test_x, to_test_y)
+        if max_y - min_y < size:
+            to_test_x += known_point.x * 2
+            to_test_y += known_point.y * 2
+            continue
+
+        # Alright, height + width fit, finally
+        get_starting_point = False
+
+    closest_score = sys.maxsize
+    step = 10
+    fits = False
+
+    # Start out with finding a place in the funnel where the ship FITS
+    while not fits:
+        print(f"Testing ({to_test_x}, {to_test_y})")
         r = test_point(instructions, to_test_x, to_test_y)
         if r != '#':
             raise Exception(f"Assumed slope is consistent, but ({to_test_x}, {to_test_x}) is not in funnel")
 
         min_x, max_x = find_width_at_xy(instructions, to_test_x, to_test_y)
-        min_y, max_y = find_height_at_xy(instructions, to_test_x, to_test_y)
-        # if max_x - min_x < size:
-        #     step *= 2
-        #     continue
 
         fits = test_for_square_starting_at(instructions, max_x - size, to_test_y, size)
         if fits:
-            closest_point = Point(max_x - step, to_test_y)
-            to_test_x = max_x - ((max_x - min_x) // 2) - size
-            to_test_y = max
+            to_test_x = max_x-size
         else:
-            step //= 2
-            to_test_x += known_point.x * step
-            to_test_y += known_point.y * step
-    return closest_point.x * 10000 + closest_point.y
+            print(f"!Fits: ({to_test_x}, {to_test_y})")
+            to_test_x = max_x
+            to_test_y += step
 
+    # Ok, we found a place where the ship fits, let's start trying to find the
+    # closest point while walking backwards
+    best_x = to_test_x
+    best_y = to_test_y
+    searching = True
+    while searching:
+        if test_for_square_starting_at(instructions, best_x - 1, best_y - 1, size):
+            best_x -= 1
+            best_y -= 1
+        elif test_for_square_starting_at(instructions, best_x - 1, best_y, size):
+            best_x -= 1
+        elif test_for_square_starting_at(instructions, best_x, best_y - 1, size):
+            best_y -= 1
+        else:
+            searching = False
+
+    return point_to_score(Point(best_x, best_y))
     # grid = defaultdict(lambda: '.')
     # for y in range(750, 1250, 10):
     #     for x in range(750, 1250, 10):
     #         res = test_point(instructions, x, y)
     #         grid[Point(x, y)] = res
     # print_buffer_to_console(grid)
+
+
+def point_to_score(point: Point):
+    return point.x * 10000 + point.y
 
 
 def test_for_square_starting_at(instructions, x, y, n):
@@ -250,7 +290,7 @@ if __name__ == "__main__":
     # res1, known_good_n4 = part1(_inst)
     # print(res1)
     #
-    res2 = part2(_inst, Point(28, 35), size=5)
+    res2 = part2(_inst, Point(28, 35), size=100)
     print(res2)
 
     # minx, maxx = find_width_at_xy(_inst, 19, 24)
