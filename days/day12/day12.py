@@ -134,7 +134,7 @@ def part2(moons):
     return lcm(lengths)
 
 
-def lcm(numbers: List[int]):
+def lcm(numbers: List[int]) -> int:
     _lcm = numbers[0]
     for n in numbers[1:]:
         _lcm = _lcm * n / math.gcd(_lcm, n)
