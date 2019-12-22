@@ -39,13 +39,26 @@ def part2(lines, cards_count, target_card, cycles):
     pos_target = target_card
     tailing = cards_count - target_card - 1
 
+    pos_target_cycle = {}
+    pos_on_cycle = {}
+
     for cycle in range(cycles):
+        if pos_target in pos_target_cycle.keys():
+            print(f"Repeat found on cycle {cycle}")
+            cycles_before_repeat = cycles
+            period = cycles - pos_target_cycle[pos_target]
+            remainder = (cycles - cycles_before_repeat) % period
+            return pos_on_cycle[remainder]
+
+        pos_target_cycle[pos_target] = cycle
+        pos_on_cycle[cycle] = pos_target
+
         for step in lines:
             if "deal with increment" in step:
                 count = int(step.split(" ")[3])
                 pos_target = pos_target * count % cards_count
                 leading = pos_target
-                tailing = cards_count - pos_target -1
+                tailing = cards_count - pos_target - 1
             elif "deal into new stack" in step:
                 leading, tailing = tailing, leading
                 pos_target = leading
@@ -61,7 +74,7 @@ def part2(lines, cards_count, target_card, cycles):
                 #     pos_target = leading
             else:
                 raise Exception("Unknown command: ", step)
-
+        print(f"Cycle: {cycle}. Position: {pos_target}")
     return pos_target
 
 
@@ -73,5 +86,5 @@ if __name__ == "__main__":
     r1 = part2(_lines, 10007, 2019, 1)
     print(r1)
 
-    r2 = part2(_lines, 119315717514047, 2020, 101741582076661)
-    print(r2)
+    # r2 = part2(_lines, 119315717514047, 2020, 10)
+    # print(r2)
