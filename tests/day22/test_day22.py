@@ -87,3 +87,13 @@ class TestDay22(TestCase):
         ]
         pos = part2(inst, 10, 6, 1)
         self.assertEqual(9, pos)
+
+    def test_cycle_repeat(self):
+        inst = [
+            "cut 1"
+        ]
+        pos1 = part2(inst, 10, 6, 3)
+        self.assertEqual(3, pos1)
+
+        pos2 = part2(inst, 10, 6, 8)
+        self.assertEqual(8, pos2)
