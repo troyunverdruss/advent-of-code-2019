@@ -274,3 +274,16 @@ class TestDay22LinearFunctions(TestCase):
 
         r = part1_linear_functions_reverse(lines, 10007, pos1)
         self.assertEqual(2019, r)
+
+    # def test_run_part_1_(self):
+    #     lines = read_raw_entries("test_input22.txt")
+    #     r = part1_linear_functions(lines, 10007, 2019)
+    #     self.assertEqual(7860, r)
+    #
+    # def test_run_part_1_rev(self):
+    #     lines = read_raw_entries("test_input22.txt")
+    #     pos1 = part1_linear_functions(lines, 10007, 2019)
+    #     self.assertEqual(7860, pos1)
+    #
+    #     r = part1_linear_functions_reverse(lines, 10007, pos1)
+    #     self.assertEqual(2019, r)

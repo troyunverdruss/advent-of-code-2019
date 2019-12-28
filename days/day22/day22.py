@@ -97,10 +97,15 @@ def part1_linear_functions(lines, cards_count, target_card):
 
 
 def part1_linear_functions_reverse(lines, cards_count, target_card):
+    a, b = compute_coefficients_reverse(cards_count, lines)
+
+    return (a * target_card + b) % cards_count
+
+
+def compute_coefficients_reverse(cards_count, lines):
     # a, b, as in y = ax + b
     # 1, 0 => exact same positions as it started/was
     a, b = 1, 0
-
     reversed_lines = lines[:]
     reversed_lines.reverse()
     for step in reversed_lines:
@@ -120,7 +125,28 @@ def part1_linear_functions_reverse(lines, cards_count, target_card):
         # Combine the values from this step with the running tallies
         a = (a * temp_a) % cards_count
         b = (temp_a * b + temp_b) % cards_count
+    return a, b
 
+
+def exponentiate_polynomial(a, b, power, mod):
+    if power == 0:
+        return 1, 0
+
+    if power % 2 == 0:
+        # a*(ax+b) + b
+        return exponentiate_polynomial(a * a % mod, a * b + b % mod, power // 2, mod)
+
+    c, d = exponentiate_polynomial(a, b, power - 1, mod)
+    return a * c % mod, (a * d + b) % mod
+
+
+CARDS_COUNT = 119315717514047
+REPEATS_COUNT = 101741582076661
+
+
+def part2_linear_functions(lines, cards_count, repeat_count, target_card):
+    a, b = compute_coefficients_reverse(cards_count, lines)
+    a, b = exponentiate_polynomial(a, b, repeat_count, cards_count)
     return (a * target_card + b) % cards_count
 
 
@@ -236,8 +262,22 @@ if __name__ == "__main__":
     # r11 = part1(_lines, 10007, 2019, 10007)
     # print(r11)
 
-    r1 = part2(_lines, 119315717514047, 2020, 17574135437386)
-    print(r1)
+    # r1 = part2(_lines, 119315717514047, 2020, 17574135437386)
+    # print(r1)
 
     # r2 = part2(_lines, 119315717514047, 2020, 101741582076661)
     # print(r2)
+
+    pos = 2019
+    r1 = part1_efficient(_lines, 10007, pos, 1)
+    print(r1)
+
+    r2 = part2_linear_functions(_lines, 10007, 1, 7860)
+    print(r2)
+
+    r2 = part2_linear_functions(_lines, CARDS_COUNT, REPEATS_COUNT, 2020)
+    print(r2)
+
+    # too high 195593846987374290
+    #              61256063148970
+    # too low      41159822405911
