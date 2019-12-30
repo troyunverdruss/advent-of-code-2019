@@ -21,6 +21,26 @@ class Point:
 
 
 @dataclass
+class SearchState:
+    loc: Point
+    collected_keys: list
+    steps: int
+
+    def __str__(self):
+        return f"{self.loc} {self.steps} {len(self.collected_keys)}:{self.collected_keys}"
+
+    def __hash__(self):
+        s = f"{self.loc} {self.sorted_keys()}"
+        return hash(s)
+
+    def __eq__(self, other):
+        return self.loc == other.loc and self.sorted_keys() == other.sorted_keys() and self.steps == other.steps
+
+    def sorted_keys(self):
+        return list(sorted(self.collected_keys))
+
+
+@dataclass
 class SavedState:
     graph: nx.Graph
     grid: Dict
@@ -31,13 +51,106 @@ class SavedState:
     total_distance: int
 
 
+def part1_v2(_lines):
+    grid, start, available_keys, required_doors = parse_map_to_grid(_lines)
+
+    open = deque()
+    shortest_path = sys.maxsize
+    closed = set()
+
+    open.append(SearchState(start, [], 0))
+
+    while len(open) > 0:
+        current: SearchState = list(sorted(open, key=lambda s: (-len(s.collected_keys), s.steps)))[0]
+        open.remove(current)
+
+        # print(f"Current: {current}")
+
+        # If we ever get to a place where we're already longer than the best, bail on this path
+        if current.steps >= shortest_path:
+            continue
+
+        destinations = explore_map(grid, current)
+        for d in sorted(destinations, key=lambda es: es.steps):
+            s = SearchState(d.loc, current.collected_keys[:], d.steps)
+            if grid[d.loc] in ascii_lowercase and grid[d.loc] not in s.collected_keys:
+                s.collected_keys.append(grid[d.loc])
+            # print(f"Reached {s}")
+
+            if s.sorted_keys() == available_keys:
+                # print(f"Final destination: {s}")
+                if s.steps <= shortest_path:
+                    shortest_path = s.steps
+                    closed.add(s)
+                # Optionally append the solution
+            elif s not in open and s not in closed:
+                open.append(s)
+    return shortest_path
+
+
+@dataclass
+class ExploreState:
+    loc: Point
+    steps: int
+
+    def __hash__(self):
+        return hash(str(f"{self.loc}"))
+
+    def __eq__(self, other):
+        return self.loc == other.loc
+
+
+def explore_map(grid: Dict, state: SearchState):
+    open = deque()
+    closed = set()
+    destinations = set()
+
+    open.append(ExploreState(state.loc, state.steps))
+
+    while len(open) > 0:
+        current = open.popleft()
+        closed.add(current)
+
+        for n in find_valid_neighbors(grid, current.loc, state.collected_keys):
+            s = ExploreState(n, current.steps + 1)
+            if grid[s.loc] in ascii_lowercase and grid[s.loc] not in state.collected_keys:
+                destinations.add(s)
+            elif s not in open and s not in closed:
+                open.append(s)
+
+    # print(f"Possible destinations: {destinations}")
+    return destinations
+
+
+def find_valid_neighbors(grid: Dict[Point, str], loc: Point, collected_keys: List):
+    neighbors = []
+
+    for d in dirs.values():
+        # If it's a wall
+        if grid[loc + d] == '#':
+            continue
+
+        # or a door we don't have the key for
+        if grid[loc + d] in ascii_uppercase and grid[loc + d].lower() not in collected_keys:
+            continue
+
+        # Or a key we already collected
+        # if grid[loc + d] in collected_keys:
+        #     continue
+
+        neighbors.append(loc + d)
+
+    # print(f"Valid neighbors {neighbors}")
+    return neighbors
+
+
 def part1(_lines):
     graph, grid, start, keys, doors = parse_map(_lines)
 
     to_test = deque()
     # seen = set()
     to_test_best_keys_to_distance = {}
-    
+
     best_path_distance = sys.maxsize
     targets = reachable(graph, start, keys)
     for k, p in sorted(targets.items(), key=lambda p: len(p[1])):
@@ -71,7 +184,7 @@ def part1(_lines):
                     state.path_to_key = p
                 else:
                     to_search_state = SavedState(state.graph.copy(), deepcopy(state.grid), deepcopy(state.start),
-                                             deepcopy(state.keys), k, p, state.total_distance)
+                                                 deepcopy(state.keys), k, p, state.total_distance)
                     # seen.add(hash(to_search_state))
                     to_test.append(
                         to_search_state
@@ -140,6 +253,25 @@ def unlock_door(graph, grid, doors, key: str):
         for d in dirs.values():
             if grid[door_loc + d] == '.' or grid[door_loc + d] in ascii_lowercase:
                 graph.add_edge(door_loc, door_loc + d)
+
+
+def parse_map_to_grid(_lines):
+    grid = defaultdict(lambda: '#')
+    start = None
+    keys = set()
+    doors = set()
+
+    for y in range(len(_lines)):
+        for x in range(len(_lines[y])):
+            grid[Point(x, y)] = _lines[y][x]
+            if _lines[y][x] == '@':
+                start = Point(x, y)
+            elif _lines[y][x] in ascii_lowercase:
+                keys.add(_lines[y][x])
+            elif _lines[y][x] in ascii_uppercase:
+                doors.add(_lines[y][x])
+
+    return grid, start, list(sorted(keys)), list(sorted(doors))
 
 
 def parse_map(_lines):

@@ -1,7 +1,7 @@
 from unittest import TestCase
 from ddt import data, ddt, unpack
 
-from days.day18.day18 import part1
+from days.day18.day18 import part1, part1_v2
 
 
 class TestDay18(TestCase):
@@ -11,7 +11,7 @@ class TestDay18(TestCase):
             "#b.A.@.a#",
             "#########",
         ]
-        self.assertEqual(8, part1(lines))
+        self.assertEqual(8, part1_v2(lines))
 
     def test_part_1_ex_2(self):
         lines = [
@@ -21,7 +21,7 @@ class TestDay18(TestCase):
             "#d.....................#",
             "########################",
         ]
-        self.assertEqual(86, part1(lines))
+        self.assertEqual(86, part1_v2(lines))
 
     def test_part_1_ex_3(self):
         lines = [
@@ -31,7 +31,7 @@ class TestDay18(TestCase):
             "#.....@.a.B.c.d.A.e.F.g#",
             "########################",
         ]
-        self.assertEqual(132, part1(lines))
+        self.assertEqual(132, part1_v2(lines))
 
     def test_part_1_ex_4(self):
         lines = [
@@ -45,7 +45,7 @@ class TestDay18(TestCase):
             "#l.F..d...h..C.m#",
             "#################",
         ]
-        self.assertEqual(136, part1(lines))
+        self.assertEqual(136, part1_v2(lines))
 
     def test_part_1_ex_5(self):
         lines = [
@@ -56,4 +56,4 @@ class TestDay18(TestCase):
             "###g#h#i################",
             "########################",
         ]
-        self.assertEqual(81, part1(lines))
+        self.assertEqual(81, part1_v2(lines))
