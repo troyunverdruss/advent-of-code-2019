@@ -23,21 +23,65 @@ class Point:
 @dataclass
 class SearchState:
     loc: Point
-    collected_keys: list
+    required_keys: list
+    other_keys: set
+    # collected_keys: list
     steps: int
+    doors: set
+    collected_order = list()
 
     def __str__(self):
-        return f"{self.loc} {self.steps} {len(self.collected_keys)}:{self.collected_keys}"
+        return f"{self.loc} {self.steps} {len(self.required_keys)}:{self.required_keys} {len(self.other_keys)}:{self.other_keys}"
 
     def __hash__(self):
-        s = f"{self.loc} {self.sorted_keys()}"
+        s = f"{self.collected_order} {self.steps}"
         return hash(s)
 
     def __eq__(self, other):
-        return self.loc == other.loc and self.sorted_keys() == other.sorted_keys() and self.steps == other.steps
+        return len(self.required_keys) == len(other.required_keys) \
+               and len(self.other_keys) == len(other.other_keys) \
+               and self.steps == other.steps
+        # return self.loc == other.loc \
+        #        and self.steps == other.steps \
+        #        and self.remaining_doors() == other.remaining_doors() \
+        #        and self.other_keys_count() == other.other_keys_count()
 
-    def sorted_keys(self):
-        return list(sorted(self.collected_keys))
+    def collected_key_count(self):
+        return len(self.required_keys) + len(self.other_keys)
+
+    def collected_keys(self):
+        return self.required_keys + list(self.other_keys)
+
+    def contains(self, key):
+        return key in self.required_keys or key in self.other_keys
+
+    def add_key(self, key):
+        if key not in self.collected_order:
+            self.collected_order.append(key)
+
+        if key.upper() in self.doors:
+            self.required_keys.append(key)
+        else:
+            self.other_keys.add(key)
+
+    # def remaining_doors(self):
+    #     return set(set(map(lambda d: d.lower(), self.doors)) - set(self.collected_keys))
+    #
+    # def other_keys_count(self):
+    #     return len(set(self.collected_keys) - set(map(lambda d: d.lower(), self.doors)))
+    #
+    # def sorted_keys(self):
+    #     return list(sorted(self.collected_keys))
+
+    def sort_key(self):
+        return (
+            -len(self.required_keys),
+            self.steps,
+                # len(self.required_keys) * 20 + len(self.other_keys) * 5 - self.steps
+            # self.steps,
+            # -len(self.required_keys),
+
+        )
 
 
 @dataclass
@@ -58,12 +102,17 @@ def part1_v2(_lines):
     shortest_path = sys.maxsize
     closed = set()
 
-    open.append(SearchState(start, [], 0))
+    open.append(SearchState(start, [], set(), 0, required_doors))
 
+    cycle = 0
     while len(open) > 0:
-        current: SearchState = list(sorted(open, key=lambda s: (-len(s.collected_keys), s.steps)))[0]
-        open.remove(current)
+        cycle +=1
+        if (cycle % 100) == 0:
+            print(f"Cycle: {cycle}, remaining open: {len(open)}")
 
+        current: SearchState = list(sorted(open, key=lambda s: s.sort_key()))[0]
+        open.remove(current)
+        closed.add(current)
         # print(f"Current: {current}")
 
         # If we ever get to a place where we're already longer than the best, bail on this path
@@ -72,21 +121,28 @@ def part1_v2(_lines):
 
         destinations = explore_map(grid, current)
         for d in sorted(destinations, key=lambda es: es.steps):
-            s = SearchState(d.loc, current.collected_keys[:], d.steps)
-            if grid[d.loc] in ascii_lowercase and grid[d.loc] not in s.collected_keys:
-                s.collected_keys.append(grid[d.loc])
+            s = SearchState(d.loc, current.required_keys[:], set(current.other_keys), d.steps, required_doors)
+
+            if grid[d.loc] in ascii_lowercase and not s.contains(grid[d.loc]):
+                s.add_key(grid[d.loc])
             # print(f"Reached {s}")
 
-            if s.sorted_keys() == available_keys:
+            if s.collected_key_count() == len(available_keys):
                 # print(f"Final destination: {s}")
                 if s.steps <= shortest_path:
                     shortest_path = s.steps
-                    closed.add(s)
+                    print(f"Shortest path so far: {shortest_path} via {s.collected_order}. Remaining open: {len(open)}")
                 # Optionally append the solution
             elif s not in open and s not in closed:
-                open.append(s)
+                if s not in closed:
+                    open.append(s)
+            # else:
+            #     print(f"Not appending: {s}")
     return shortest_path
 
+
+# def in_closed(closed, candidate):
+#     filter(lambda ss: ss., closed)
 
 @dataclass
 class ExploreState:
@@ -111,9 +167,9 @@ def explore_map(grid: Dict, state: SearchState):
         current = open.popleft()
         closed.add(current)
 
-        for n in find_valid_neighbors(grid, current.loc, state.collected_keys):
+        for n in find_valid_neighbors(grid, current.loc, state.collected_keys()):
             s = ExploreState(n, current.steps + 1)
-            if grid[s.loc] in ascii_lowercase and grid[s.loc] not in state.collected_keys:
+            if grid[s.loc] in ascii_lowercase and grid[s.loc] not in state.collected_keys():
                 destinations.add(s)
             elif s not in open and s not in closed:
                 open.append(s)
@@ -271,7 +327,7 @@ def parse_map_to_grid(_lines):
             elif _lines[y][x] in ascii_uppercase:
                 doors.add(_lines[y][x])
 
-    return grid, start, list(sorted(keys)), list(sorted(doors))
+    return grid, start, list(sorted(keys)), doors
 
 
 def parse_map(_lines):
@@ -306,5 +362,6 @@ def parse_map(_lines):
 
 if __name__ == "__main__":
     lines = read_raw_entries("input18.txt")
-    part1(lines)
+    part1_v2(lines)
     pass
+# too high 3822
