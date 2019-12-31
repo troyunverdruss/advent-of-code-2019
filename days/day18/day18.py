@@ -35,7 +35,8 @@ class SearchState:
 
     def __hash__(self):
         # s = f"{len(self.required_keys)} {len(self.other_keys)} {self.steps}"
-        s = f"{self.collected_order[-1]} {len(self.collected_order)} {self.steps}"
+        # s = f"{self.collected_order[-1]} {len(self.collected_order)}  {self.steps}"
+        s = f"{self.collected_order[-1]} {len(self.collected_order)}"
         return hash(s)
 
     def __eq__(self, other):
@@ -48,7 +49,7 @@ class SearchState:
                and (len(self.collected_order) != 0 and len(other.collected_order) != 0
                     and self.collected_order[-1] == other.collected_order[-1]) \
                and len(self.other_keys) == len(other.other_keys) \
-               and self.steps == other.steps
+               # and self.steps == other.steps
         # return self.loc == other.loc \
         #        and self.steps == other.steps \
         #        and self.remaining_doors() == other.remaining_doors() \
@@ -111,6 +112,7 @@ class SavedState:
     path_to_key: list
     total_distance: int
 
+steps_by_collected_cache = {}
 
 def part1_v2(_lines):
     grid, start, available_keys, required_doors = parse_map_to_grid(_lines)
@@ -133,7 +135,7 @@ def part1_v2(_lines):
         # print(f"Current: {current}")
 
         # If we ever get to a place where we're already longer than the best, bail on this path
-        if current.steps >= shortest_path:
+        if current.steps >= shortest_path or current.steps > steps_by_collected_cache[current.__hash__()]:
             continue
 
         destinations = explore_map(grid, current)
@@ -145,6 +147,7 @@ def part1_v2(_lines):
                 s.add_key(grid[d.loc])
             # print(f"Reached {s}")
 
+            lookup_key = s.__hash__()
             if s.collected_key_count() == len(available_keys):
                 # print(f"Final destination: {s}")
                 if s.steps <= shortest_path:
@@ -153,8 +156,14 @@ def part1_v2(_lines):
                 # Optionally append the solution
             elif s not in open and s not in closed:
                 open.append(s)
+            else:
+                # lookup_key = (s.collected_order[-1], str(sorted(s.collected_order)))
+                if s.steps < steps_by_collected_cache[lookup_key]:
+                    open.append(s)
+                # Then store the steps for this collected set, with final key
             # else:
             #     print(f"Not appending: {s}")
+            steps_by_collected_cache[lookup_key] = s.steps
     return shortest_path
 
 
