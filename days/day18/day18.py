@@ -28,17 +28,25 @@ class SearchState:
     # collected_keys: list
     steps: int
     doors: set
-    collected_order = list()
+    collected_order: list
 
     def __str__(self):
         return f"{self.loc} {self.steps} {len(self.required_keys)}:{self.required_keys} {len(self.other_keys)}:{self.other_keys}"
 
     def __hash__(self):
-        s = f"{self.collected_order} {self.steps}"
+        # s = f"{len(self.required_keys)} {len(self.other_keys)} {self.steps}"
+        s = f"{self.collected_order[-1]} {len(self.collected_order)} {self.steps}"
         return hash(s)
 
     def __eq__(self, other):
+        # return sorted(self.collected_order) == sorted(other.collected_order) \
+        #        and (len(self.collected_order) != 0 and len(other.collected_order) != 0
+        #             and self.collected_order[-1] == other.collected_order[-1]) \
+        #        and self.steps == other.steps
+        #
         return len(self.required_keys) == len(other.required_keys) \
+               and (len(self.collected_order) != 0 and len(other.collected_order) != 0
+                    and self.collected_order[-1] == other.collected_order[-1]) \
                and len(self.other_keys) == len(other.other_keys) \
                and self.steps == other.steps
         # return self.loc == other.loc \
@@ -75,9 +83,18 @@ class SearchState:
 
     def sort_key(self):
         return (
+            # This is the only sorting solution that HAS EVER worked for all the tests
+            # So don't delete it without thinking
             -len(self.required_keys),
             self.steps,
-                # len(self.required_keys) * 20 + len(self.other_keys) * 5 - self.steps
+            # End of ever-working list
+
+            # len(self.doors) - len(self.required_keys),
+            # self.steps,
+            # self.collected_key_count()
+
+            # -len(self.collected_keys())
+            # len(self.required_keys) * 20 + len(self.other_keys) * 5 - self.steps
             # self.steps,
             # -len(self.required_keys),
 
@@ -100,19 +117,19 @@ def part1_v2(_lines):
 
     open = deque()
     shortest_path = sys.maxsize
-    closed = set()
+    closed = deque()
 
-    open.append(SearchState(start, [], set(), 0, required_doors))
+    open.append(SearchState(start, [], set(), 0, required_doors, []))
 
     cycle = 0
     while len(open) > 0:
-        cycle +=1
-        if (cycle % 100) == 0:
+        cycle += 1
+        if (cycle % 1000) == 0:
             print(f"Cycle: {cycle}, remaining open: {len(open)}")
 
-        current: SearchState = list(sorted(open, key=lambda s: s.sort_key()))[0]
-        open.remove(current)
-        closed.add(current)
+        current: SearchState = open.popleft()  # list(sorted(open, key=lambda s: s.sort_key()))[0]
+        # open.remove(current)
+        closed.append(current)
         # print(f"Current: {current}")
 
         # If we ever get to a place where we're already longer than the best, bail on this path
@@ -120,8 +137,9 @@ def part1_v2(_lines):
             continue
 
         destinations = explore_map(grid, current)
-        for d in sorted(destinations, key=lambda es: es.steps):
-            s = SearchState(d.loc, current.required_keys[:], set(current.other_keys), d.steps, required_doors)
+        for d in sorted(destinations, key=lambda es: es.sort_key()):
+            s = SearchState(d.loc, current.required_keys[:], set(current.other_keys), d.steps, required_doors,
+                            current.collected_order[:])
 
             if grid[d.loc] in ascii_lowercase and not s.contains(grid[d.loc]):
                 s.add_key(grid[d.loc])
@@ -134,8 +152,7 @@ def part1_v2(_lines):
                     print(f"Shortest path so far: {shortest_path} via {s.collected_order}. Remaining open: {len(open)}")
                 # Optionally append the solution
             elif s not in open and s not in closed:
-                if s not in closed:
-                    open.append(s)
+                open.append(s)
             # else:
             #     print(f"Not appending: {s}")
     return shortest_path
@@ -148,6 +165,7 @@ def part1_v2(_lines):
 class ExploreState:
     loc: Point
     steps: int
+    door_key: bool = False
 
     def __hash__(self):
         return hash(str(f"{self.loc}"))
@@ -155,11 +173,31 @@ class ExploreState:
     def __eq__(self, other):
         return self.loc == other.loc
 
+    def sort_key(self):
+        return (
+            self.steps,
+            not self.door_key
+        )
+
+
+exploration_cache = {}
+
 
 def explore_map(grid: Dict, state: SearchState):
     open = deque()
     closed = set()
     destinations = set()
+    cached_destinations = set()
+
+    lookup_key = (Point(state.loc.x, state.loc.y), ''.join(list(sorted(state.collected_keys()))))
+
+    if lookup_key in exploration_cache:
+        # print(f"Cache hit: {lookup_key}, value: {exploration_cache[lookup_key]}")
+        dests = set()
+        for cd in exploration_cache[lookup_key]:
+            dests.add(ExploreState(cd.loc, cd.steps + state.steps))
+
+        return dests
 
     open.append(ExploreState(state.loc, state.steps))
 
@@ -169,12 +207,26 @@ def explore_map(grid: Dict, state: SearchState):
 
         for n in find_valid_neighbors(grid, current.loc, state.collected_keys()):
             s = ExploreState(n, current.steps + 1)
+
             if grid[s.loc] in ascii_lowercase and grid[s.loc] not in state.collected_keys():
+                cached_state = ExploreState(n, current.steps + 1 - state.steps)
+                if grid[s.loc] in ascii_uppercase:
+                    s.door_key = True
+                    cached_state.door_key = True
+
+                cached_destinations.add(cached_state)
                 destinations.add(s)
+
             elif s not in open and s not in closed:
                 open.append(s)
 
-    # print(f"Possible destinations: {destinations}")
+    # # print(f"Possible destinations: {destinations}")
+    # if lookup_key in exploration_cache and exploration_cache[lookup_key] != destinations:
+    #     print(f"Cache has:       {exploration_cache[lookup_key]}")
+    #     print(f"Really returned: {destinations}")
+
+    exploration_cache[lookup_key] = set(cached_destinations)
+    # return exploration_cache[lookup_key]
     return destinations
 
 
@@ -362,6 +414,7 @@ def parse_map(_lines):
 
 if __name__ == "__main__":
     lines = read_raw_entries("input18.txt")
-    part1_v2(lines)
+    r1 = part1_v2(lines)
+    print(r1)
     pass
 # too high 3822
