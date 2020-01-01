@@ -1,8 +1,9 @@
 import heapq
+import itertools
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Iterable
 
 from days.day18.day18 import parse_map_to_grid
 from helpers import read_raw_entries
@@ -25,17 +26,17 @@ class Point:
 
 @dataclass
 class SearchState:
-    loc: Point
+    # loc: Point
     collected_keys_in_order: list
     steps: int
     doors: set
     door_keys_in_order: list
 
     def __str__(self):
-        return f"{self.loc} {self.steps} {self.last_key()} {sorted(self.collected_keys_in_order)}"
+        return f"{self.last_key()} {self.steps} {sorted(self.collected_keys_in_order)}"
 
     def __hash__(self):
-        h = f"{self.loc} {self.last_key()} {sorted(self.door_keys_in_order)} {len(self.collected_keys_in_order)}"
+        h = f"{self.last_key()} {''.join(sorted(self.collected_keys_in_order))}"
         return hash(h)
 
     def __eq__(self, other):
@@ -74,39 +75,155 @@ class SearchState:
         )
 
 
+@dataclass
+class TraversalData:
+    start: str
+    end: str
+    steps: int
+    required_keys: set
+
+    def is_open(self, collected_keys: Iterable[str]):
+        return len(self.required_keys - set(collected_keys)) == 0
+
+
+@dataclass
+class TraversalSearchState:
+    loc: Point
+    doors: set
+    steps: int
+
+    def __hash__(self):
+        h = f"{self.loc}"
+        return hash(h)
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def __lt__(self, other):
+        return self.sort_key() < other.sort_key()
+
+    def sort_key(self):
+        return (
+            self.steps
+        )
+
+
+def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
+    traversal_data = defaultdict(lambda: {})
+    key_to_loc = {}
+    door_to_loc = {}
+
+    for _loc, _val in list(grid.items()):
+        if _val in ascii_lowercase:
+            key_to_loc[_val] = _loc
+        elif _val in ascii_uppercase:
+            door_to_loc[_val] = _loc
+        elif _val == '@':
+            key_to_loc['_'] = _loc
+
+    # for start_key, end_key in itertools.combinations(['start'] + keys, 2):
+    for start_key in ['_'] + keys:
+
+        _open = []
+        # _open_set = {}
+        _closed = {}
+
+        heapq.heapify(_open)
+
+        _open.append(TraversalSearchState(key_to_loc[start_key], set(), 0))
+
+        found_ends = 0
+        while len(_open) > 0 and found_ends < len(keys):
+            current = heapq.heappop(_open)
+
+            if grid[current.loc] in ascii_lowercase and start_key != grid[current.loc]:
+                end_key = grid[current.loc]
+                required_keys = set(map(lambda d: d.lower(), current.doors))
+                traversal_data[start_key][end_key] = TraversalData(start_key, end_key, current.steps, required_keys)
+                if start_key != '_':
+                    traversal_data[end_key][start_key] = TraversalData(end_key, start_key, current.steps, required_keys)
+                found_ends += 1
+                # _closed[current] = current
+                # continue
+
+            _closed[current] = current
+
+            for d in dirs.values():
+                if grid[current.loc + d] == '#':
+                    continue
+                doors = set(current.doors)
+                if grid[current.loc + d] in ascii_uppercase:
+                    doors.add(grid[current.loc + d])
+
+                next_state = TraversalSearchState(current.loc + d, doors, current.steps + 1)
+                if next_state not in _open and next_state not in _closed:
+                    _open.append(next_state)
+                # if next_state not in _open_set and next_state not in _closed:
+                #     _open.append(next_state)
+                #     _open_set[next_state] = next_state
+                # elif next_state in _open_set and next_state.steps < _open_set[next_state].steps:
+                #     _open_set[next_state].steps = next_state.steps
+                # elif next_state in _closed and next_state.steps < _closed[next_state].steps:
+                #     del _closed[next_state]
+                #     _open.append(next_state)
+                #     _open_set[next_state] = next_state
+
+    return traversal_data
+
+
 def part1(lines):
     grid, start, available_keys, doors = parse_map_to_grid(lines)
 
-    _open = []
-    _closed = set()
+    traversal_data = build_traversal_data(grid, available_keys)
 
-    heapq.heapify(_open)
-    first_state = SearchState(start, [], 0, doors, [])
-    _open.append(first_state)
+    _queue = []
+    _open = {}
+    _closed = {}
+
+    heapq.heapify(_queue)
+    first_state = SearchState(['_'], 0, doors, [])
+    _queue.append(first_state)
+    _open[first_state] = first_state
 
     shortest_path = sys.maxsize
     cycles = 0
-    while len(_open) > 0:
+    while len(_queue) > 0:
         cycles += 1
         if cycles % 100 == 0:
-            print(f"Cycle: {cycles}, open: {len(_open)}, closed: {len(_closed)}, current shortest path: {shortest_path}")
-        current = heapq.heappop(_open)  # list(sorted(_open, key=lambda ss: ss.sort_key()))[0]
-        # _open.remove(current)
-        _closed.add(current)
+            print(
+                f"Cycle: {cycles}, open: {len(_queue)}, closed: {len(_closed)}, current shortest path: {shortest_path}")
+        current = heapq.heappop(_queue)  # list(sorted(_open, key=lambda ss: ss.sort_key()))[0]
+        del _open[current]
+        _closed[current] = current
 
-        if len(current.collected_keys_in_order) == len(available_keys) and current.steps < shortest_path:
+        if len(current.collected_keys_in_order) == len(available_keys)+1 and current.steps < shortest_path:
             shortest_path = current.steps
             print(f"Shortest path: {shortest_path}")
             continue
 
-        for n in find_neighbors(grid, doors, current):
-            next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors,
-                                     current.door_keys_in_order[:])
-            if grid[n] in ascii_lowercase:
-                next_state.add_key(grid[n])
+        available_targets = list(filter(lambda td: td.is_open(current.collected_keys_in_order) and td.end not in current.collected_keys_in_order, traversal_data[current.last_key()].values()))
+        for dest in list(sorted(available_targets, key=lambda td: td.steps)):
+            next_state = SearchState(current.collected_keys_in_order[:], current.steps + dest.steps, doors, current.door_keys_in_order[:])
+            next_state.add_key(dest.end)
 
-            if next_state not in _closed and next_state not in _open:
-                _open.append(next_state)
+            if next_state not in _queue and next_state not in _closed:
+                _queue.append(next_state)
+                _open[next_state] = next_state
+            elif next_state in _open and next_state.steps < _open[next_state].steps:
+                _open[next_state].steps = next_state.steps
+            elif next_state in _closed and next_state.steps < _closed[next_state].steps:
+                del _closed[next_state]
+                _queue.append(next_state)
+                _open[next_state] = next_state
+
+        # for n in  find_neighbors(grid, doors, current):
+        #     next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors,
+        #                              current.door_keys_in_order[:])
+        #     if grid[n] in ascii_lowercase:
+        #         next_state.add_key(grid[n])
+        #
+        #     if next_state not in _closed and next_state not in _open:
+        #         _open.append(next_state)
 
     return shortest_path
 
