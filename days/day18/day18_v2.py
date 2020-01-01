@@ -35,7 +35,7 @@ class SearchState:
         return f"{self.loc} {self.steps} {self.last_key()} {sorted(self.collected_keys_in_order)}"
 
     def __hash__(self):
-        h = f"{self.loc} {self.last_key()} {len(self.door_keys_in_order)} {len(self.collected_keys_in_order)}"
+        h = f"{self.loc} {self.last_key()} {sorted(self.door_keys_in_order)} {len(self.collected_keys_in_order)}"
         return hash(h)
 
     def __eq__(self, other):
@@ -88,6 +88,8 @@ def part1(lines):
     cycles = 0
     while len(_open) > 0:
         cycles += 1
+        if cycles % 100 == 0:
+            print(f"Cycle: {cycles}, open: {len(_open)}, closed: {len(_closed)}, current shortest path: {shortest_path}")
         current = heapq.heappop(_open)  # list(sorted(_open, key=lambda ss: ss.sort_key()))[0]
         # _open.remove(current)
         _closed.add(current)
@@ -98,7 +100,8 @@ def part1(lines):
             continue
 
         for n in find_neighbors(grid, doors, current):
-            next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors, current.door_keys_in_order[:])
+            next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors,
+                                     current.door_keys_in_order[:])
             if grid[n] in ascii_lowercase:
                 next_state.add_key(grid[n])
 
@@ -111,6 +114,8 @@ def part1(lines):
 dirs = {"U": Point(0, 1), "L": Point(-1, 0), "R": Point(1, 0), "D": Point(0, -1)}
 
 neighbor_cache = {}
+
+
 def find_neighbors(grid: Dict[Point, str], doors: List, state: SearchState):
     neighbors = []
 
