@@ -374,7 +374,7 @@ def unlock_door(graph, grid, doors, key: str):
 
 def parse_map_to_grid(_lines):
     grid = defaultdict(lambda: '#')
-    start = None
+    starts = list()
     keys = set()
     doors = set()
 
@@ -382,13 +382,13 @@ def parse_map_to_grid(_lines):
         for x in range(len(_lines[y])):
             grid[Point(x, y)] = _lines[y][x]
             if _lines[y][x] == '@':
-                start = Point(x, y)
+                starts.append(Point(x, y))
             elif _lines[y][x] in ascii_lowercase:
                 keys.add(_lines[y][x])
             elif _lines[y][x] in ascii_uppercase:
                 doors.add(_lines[y][x])
 
-    return grid, start, list(sorted(keys)), doors
+    return grid, starts, list(sorted(keys)), doors
 
 
 def parse_map(_lines):

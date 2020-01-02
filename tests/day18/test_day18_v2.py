@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from days.day18.day18_v2 import part1
+from days.day18.day18_v2 import part1, part2
 
 
 class TestDay18(TestCase):
@@ -56,3 +56,15 @@ class TestDay18(TestCase):
             "########################",
         ]
         self.assertEqual(81, part1(lines))
+
+    def test_part_2_ex_1(self):
+        lines = [
+            "#######",
+            "#a.#Cd#",
+            "##@#@##",
+            "#######",
+            "##@#@##",
+            "#cB#Ab#",
+            "#######",
+        ]
+        self.assertEqual(8, part2(lines))

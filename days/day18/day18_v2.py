@@ -3,7 +3,7 @@ import itertools
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import List, Dict, Iterable, Set
+from typing import List, Dict, Iterable, Set, Union
 
 from days.day18.day18 import parse_map_to_grid
 from helpers import read_raw_entries
@@ -108,7 +108,7 @@ class TraversalSearchState:
         )
 
 
-def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
+def build_traversal_data(grid: Dict[Point, str], keys: List[str], start_loc: Union[Point, None] = None):
     traversal_data = defaultdict(lambda: {})
     key_to_loc = {}
     door_to_loc = {}
@@ -119,7 +119,10 @@ def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
         elif _val in ascii_uppercase:
             door_to_loc[_val] = _loc
         elif _val == '@':
-            key_to_loc['_'] = _loc
+            if start_loc is None:
+                key_to_loc['_'] = _loc
+            elif _loc == start_loc:
+                key_to_loc['_'] = _loc
 
     for start_key in ['_'] + keys:
         _open = []
@@ -175,7 +178,7 @@ class DijkstraSearchNode:
 
 
 def part1(lines):
-    grid, start, available_keys, doors = parse_map_to_grid(lines)
+    grid, starts, available_keys, doors = parse_map_to_grid(lines)
     traversal_data = build_traversal_data(grid, available_keys)
 
     return distance_to_collect_keys(available_keys, traversal_data, '_', set(available_keys), {})
@@ -207,6 +210,54 @@ def distance_to_collect_keys(all_keys: List[str],
 
     cache[cache_key] = result
     return result
+
+
+def part2(lines):
+    modified_lines = modify_lines(lines)
+    grid, starts, available_keys, doors = parse_map_to_grid(modified_lines)
+
+    traversal_data = []
+    for start in starts:
+        traversal_data.append(build_traversal_data(grid, available_keys, start))
+
+    total = 0
+    for td in traversal_data:
+        reachable_keys = set(td['_'].keys())
+        total += distance_to_collect_keys(available_keys, td, '_', reachable_keys, {})
+
+    return total
+
+
+def modify_lines(lines):
+    result_lines = lines[:]
+
+    line_before_half = len(result_lines) // 2 - 1
+    line_at_half = len(result_lines) // 2
+    line_after_half = len(result_lines) // 2 + 1
+
+    char_before_half = len(result_lines[0]) // 2 -1
+    char_at_half = len(result_lines[0]) // 2
+    char_after_half = len(result_lines[0]) // 2 + 1
+
+    line = list(result_lines[line_before_half])
+    line[char_before_half] = '@'
+    line[char_at_half] = '#'
+    line[char_after_half] = '@'
+    result_lines[line_before_half] = ''.join(line)
+
+    line = list(result_lines[line_at_half])
+    line[char_before_half] = '#'
+    line[char_at_half] = '#'
+    line[char_after_half] = '#'
+    result_lines[line_at_half] = ''.join(line)
+
+    line = list(result_lines[line_after_half])
+    line[char_before_half] = '@'
+    line[char_at_half] = '#'
+    line[char_after_half] = '@'
+    result_lines[line_after_half] = ''.join(line)
+
+    return result_lines
 
 
 def part1x(lines):
@@ -357,7 +408,10 @@ def find_neighbors(grid: Dict[Point, str], doors: List, state: SearchState):
 
 if __name__ == "__main__":
     _lines = read_raw_entries("input18.txt")
-    r1 = part1(_lines)
-    print(r1)
+    # r1 = part1(_lines)
+    # print(r1)
+
+    r2 = part2(_lines)
+    print(r2)
     pass
 # too high 3802
