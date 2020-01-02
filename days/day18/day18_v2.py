@@ -3,7 +3,7 @@ import itertools
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import List, Dict, Iterable
+from typing import List, Dict, Iterable, Set
 
 from days.day18.day18 import parse_map_to_grid
 from helpers import read_raw_entries
@@ -26,11 +26,9 @@ class Point:
 
 @dataclass
 class SearchState:
-    # loc: Point
+    current_key: str
     collected_keys_in_order: list
     steps: int
-    doors: set
-    door_keys_in_order: list
 
     def __str__(self):
         return f"{self.last_key()} {self.steps} {sorted(self.collected_keys_in_order)}"
@@ -53,8 +51,8 @@ class SearchState:
     def add_key(self, key):
         if key not in self.collected_keys_in_order:
             self.collected_keys_in_order.append(key)
-            if key.upper() in self.doors:
-                self.door_keys_in_order.append(key)
+            # if key.upper() in self.doors:
+            #     self.door_keys_in_order.append(key)
 
     def last_key(self):
         if len(self.collected_keys_in_order) > 0:
@@ -69,7 +67,8 @@ class SearchState:
 
     def sort_key(self):
         return (
-            self.steps,
+            len(self.collected_keys_in_order)
+            # self.steps,
             # -len(self.collected_keys_in_order),
             # self.steps_per_key()
         )
@@ -90,6 +89,7 @@ class TraversalData:
 class TraversalSearchState:
     loc: Point
     doors: set
+    keys: set
     steps: int
 
     def __hash__(self):
@@ -121,16 +121,13 @@ def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
         elif _val == '@':
             key_to_loc['_'] = _loc
 
-    # for start_key, end_key in itertools.combinations(['start'] + keys, 2):
     for start_key in ['_'] + keys:
-
         _open = []
-        # _open_set = {}
         _closed = {}
 
         heapq.heapify(_open)
 
-        _open.append(TraversalSearchState(key_to_loc[start_key], set(), 0))
+        _open.append(TraversalSearchState(key_to_loc[start_key], set(), set(), 0))
 
         found_ends = 0
         while len(_open) > 0 and found_ends < len(keys):
@@ -143,8 +140,6 @@ def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
                 if start_key != '_':
                     traversal_data[end_key][start_key] = TraversalData(end_key, start_key, current.steps, required_keys)
                 found_ends += 1
-                # _closed[current] = current
-                # continue
 
             _closed[current] = current
 
@@ -154,78 +149,185 @@ def build_traversal_data(grid: Dict[Point, str], keys: List[str]):
                 doors = set(current.doors)
                 if grid[current.loc + d] in ascii_uppercase:
                     doors.add(grid[current.loc + d])
+                _keys = set(current.keys)
+                if grid[current.loc + d] in ascii_lowercase:
+                    _keys.add(grid[current.loc + d])
 
-                next_state = TraversalSearchState(current.loc + d, doors, current.steps + 1)
+                next_state = TraversalSearchState(current.loc + d, doors, _keys, current.steps + 1)
                 if next_state not in _open and next_state not in _closed:
                     _open.append(next_state)
-                # if next_state not in _open_set and next_state not in _closed:
-                #     _open.append(next_state)
-                #     _open_set[next_state] = next_state
-                # elif next_state in _open_set and next_state.steps < _open_set[next_state].steps:
-                #     _open_set[next_state].steps = next_state.steps
-                # elif next_state in _closed and next_state.steps < _closed[next_state].steps:
-                #     del _closed[next_state]
-                #     _open.append(next_state)
-                #     _open_set[next_state] = next_state
 
     return traversal_data
 
 
+@dataclass
+class DijkstraSearchNode:
+    last_key: str
+    visited: set
+    distance: int
+
+    def __hash__(self):
+        h = f"{self.last_key} {sorted(self.visited)}"
+        return hash(h)
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+
 def part1(lines):
+    grid, start, available_keys, doors = parse_map_to_grid(lines)
+    traversal_data = build_traversal_data(grid, available_keys)
+
+    return distance_to_collect_keys(available_keys, traversal_data, '_', set(available_keys), {})
+
+
+def distance_to_collect_keys(all_keys: List[str],
+                             traversal_data: Dict[str, Dict[str, TraversalData]],
+                             current_key: str,
+                             keys: Set[str],
+                             cache: Dict):
+    if len(keys) == 0:
+        return 0
+
+    cache_key = (current_key, str(sorted(keys)))
+    if cache_key in cache:
+        return cache[cache_key]
+
+    result = sys.maxsize
+    collected_keys = set(all_keys) - set(keys)
+    reachable_keys = set()
+    for lookup_key in traversal_data[current_key].keys():
+        if traversal_data[current_key][lookup_key].is_open(collected_keys):
+            reachable_keys.add(lookup_key)
+
+    for key in reachable_keys & keys:
+        d = traversal_data[current_key][key].steps \
+            + distance_to_collect_keys(all_keys, traversal_data, key, keys - set(key), cache)
+        result = min(d, result)
+
+    cache[cache_key] = result
+    return result
+
+
+def part1x(lines):
     grid, start, available_keys, doors = parse_map_to_grid(lines)
 
     traversal_data = build_traversal_data(grid, available_keys)
 
-    _queue = []
-    _open = {}
-    _closed = {}
+    cache = {}
+    start = DijkstraSearchNode('_', set('_'), 0)
+    cache[start] = start
 
-    heapq.heapify(_queue)
-    first_state = SearchState(['_'], 0, doors, [])
-    _queue.append(first_state)
-    _open[first_state] = first_state
+    last_visited = []
+    last_visited.append(start)
+    current_unvisited = []
+    next_unvisited = []
 
-    shortest_path = sys.maxsize
-    cycles = 0
-    while len(_queue) > 0:
-        cycles += 1
-        if cycles % 100 == 0:
-            print(
-                f"Cycle: {cycles}, open: {len(_queue)}, closed: {len(_closed)}, current shortest path: {shortest_path}")
-        current = heapq.heappop(_queue)  # list(sorted(_open, key=lambda ss: ss.sort_key()))[0]
-        del _open[current]
-        _closed[current] = current
+    for _ in range(len(available_keys)):
+        # Set up my initial "next" nodes
+        for node in last_visited:
+            for k in sorted(available_keys):
+                if node.last_key == k:
+                    continue
 
-        if len(current.collected_keys_in_order) == len(available_keys)+1 and current.steps < shortest_path:
-            shortest_path = current.steps
-            print(f"Shortest path: {shortest_path}")
-            continue
+                if traversal_data[node.last_key][k].is_open(node.visited):
+                    n = DijkstraSearchNode(k, node.visited, node.distance + traversal_data[node.last_key][k].distance)
+                    if n in cache:
+                        continue
 
-        available_targets = list(filter(lambda td: td.is_open(current.collected_keys_in_order) and td.end not in current.collected_keys_in_order, traversal_data[current.last_key()].values()))
-        for dest in list(sorted(available_targets, key=lambda td: td.steps)):
-            next_state = SearchState(current.collected_keys_in_order[:], current.steps + dest.steps, doors, current.door_keys_in_order[:])
-            next_state.add_key(dest.end)
+                    next_unvisited.append(n)
+                    cache[n] = n
 
-            if next_state not in _queue and next_state not in _closed:
-                _queue.append(next_state)
-                _open[next_state] = next_state
-            elif next_state in _open and next_state.steps < _open[next_state].steps:
-                _open[next_state].steps = next_state.steps
-            elif next_state in _closed and next_state.steps < _closed[next_state].steps:
-                del _closed[next_state]
-                _queue.append(next_state)
-                _open[next_state] = next_state
+        last_visited.clear()
+        for unvisited in current_unvisited:
+            unvisited.distance = traversal_data[node.last_key][unvisited.last_key]
+            last_visited.append(
+                unvisited
+            )
 
-        # for n in  find_neighbors(grid, doors, current):
-        #     next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors,
-        #                              current.door_keys_in_order[:])
-        #     if grid[n] in ascii_lowercase:
-        #         next_state.add_key(grid[n])
-        #
-        #     if next_state not in _closed and next_state not in _open:
-        #         _open.append(next_state)
 
-    return shortest_path
+# def thing():
+#     _queue = []
+#     _open = {}
+#     _closed = {}
+#     _cache = {}
+#
+#     heapq.heapify(_queue)
+#     first_state = SearchState(['_'], 0, doors, [])
+#     _queue.append(first_state)
+#     _open[first_state] = first_state
+#
+#     shortest_path = sys.maxsize
+#     cycles = 0
+#     while len(_queue) > 0:
+#         print_cycle_debug_info(_closed, _queue, cycles, shortest_path)
+#
+#         # Get the next item
+#         current = heapq.heappop(_queue)
+#         del _open[current]
+#         _closed[current] = current
+#
+#         # Check if it's actually a solution
+#         if len(current.collected_keys_in_order) == len(available_keys) + 1 and current.steps < shortest_path:
+#             shortest_path = current.steps
+#             print(f"Shortest path: {shortest_path}")
+#             continue
+#
+#         visited = {}
+#         unvisited = []
+#         for u in get_available_targets(traversal_data, current):
+#             unvisited.append(SearchState(
+#
+#             ))
+#         for dest in
+#
+#         for dest in get_available_targets(traversal_data, current):
+#             next_state = SearchState(
+#                 current.collected_keys_in_order[:],
+#                 current.steps + dest.steps,
+#                 doors,
+#                 current.door_keys_in_order[:])
+#             next_state.add_key(dest.end)
+#
+#             if next_state not in _queue and next_state not in _closed:
+#                 _queue.append(next_state)
+#                 _open[next_state] = next_state
+#             elif next_state in _open and next_state.steps < _open[next_state].steps:
+#                 _open[next_state].steps = next_state.steps
+#             elif next_state in _closed and next_state.steps < _closed[next_state].steps:
+#                 del _closed[next_state]
+#                 _queue.append(next_state)
+#                 _open[next_state] = next_state
+#
+#         # for n in  find_neighbors(grid, doors, current):
+#         #     next_state = SearchState(n, current.collected_keys_in_order[:], current.steps + 1, doors,
+#         #                              current.door_keys_in_order[:])
+#         #     if grid[n] in ascii_lowercase:
+#         #         next_state.add_key(grid[n])
+#         #
+#         #     if next_state not in _closed and next_state not in _open:
+#         #         _open.append(next_state)
+#
+#     return shortest_path
+
+
+def print_cycle_debug_info(_closed, _queue, cycles, shortest_path):
+    cycles += 1
+    if cycles % 100 == 0:
+        print(
+            f"Cycle: {cycles}, open: {len(_queue)}, closed: {len(_closed)}, current shortest path: {shortest_path}")
+
+
+def get_available_targets(traversal_data: Dict[str, Dict[str, TraversalData]], state: SearchState):
+    available_targets = list(filter(
+        lambda td: td.is_open(state.collected_keys_in_order) and td.end not in state.collected_keys_in_order,
+        traversal_data[state.last_key()].values()
+    ))
+    sorted_targets = list(sorted(
+        available_targets,
+        key=lambda td: td.steps
+    ))
+    return sorted_targets
 
 
 dirs = {"U": Point(0, 1), "L": Point(-1, 0), "R": Point(1, 0), "D": Point(0, -1)}
