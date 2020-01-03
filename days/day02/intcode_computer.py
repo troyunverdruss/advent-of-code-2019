@@ -67,6 +67,18 @@ class IntcodeComputer:
         return f"ID: {self.id} Running: {self.running} Waiting: {self.waiting} " \
                f"Inputs: {self.inputs} Outputs: {self.outputs}"
 
+    def clone(self):
+        new_ic = IntcodeComputer([])
+        new_ic.memory = self.memory.copy()
+        new_ic.instruction_pointer = self.instruction_pointer
+        new_ic.relative_base = self.relative_base
+        new_ic.inputs.extend(self.inputs)
+        new_ic.outputs.extend(self.outputs)
+        new_ic.running = self.running
+        new_ic.waiting = self.waiting
+        new_ic.enable_stdout = self.enable_stdout
+        return new_ic
+
     def run(self):
         self.running = True
         while self.step() and not self.waiting:
@@ -80,6 +92,9 @@ class IntcodeComputer:
 
     def set_inputs(self, _inputs: List[int]):
         self.inputs.extend(_inputs)
+
+    def set_ascii_cmd(self, command_string):
+        self.inputs.extend(map(ord, list(command_string) + ['\n']))
 
     def get_outputs(self):
         return self.outputs
