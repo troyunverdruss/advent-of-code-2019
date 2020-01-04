@@ -1,8 +1,9 @@
+import itertools
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from os import read
-from typing import List, Iterable
+from typing import List, Iterable, Dict
 
 from days.day02.intcode_computer import IntcodeComputer
 from helpers import read_raw_entries
@@ -74,6 +75,11 @@ def part1(inst):
     # - spool of cat6
     # - wreath
 
+    ic_through_security = go_through_security_checkpoint_1(ic, rooms)
+
+    i =0
+    ic = ic_through_security
+
     last_loc = loc
     while True:
         ic.waiting = False
@@ -107,6 +113,63 @@ def part1(inst):
             grid[loc] = 'x'
 
         ic.inputs.extend(map(ord, list(cmd) + ['\n']))
+
+
+def go_through_security_checkpoint_1(ic: IntcodeComputer, rooms: Dict):
+    original_ic = ic.clone()
+    security_checkpoint = rooms['== Security Checkpoint ==']
+    for step in security_checkpoint.path:
+        original_ic.set_ascii_cmd(step)
+        original_ic.waiting = False
+        original_ic.run()
+        print_outputs(original_ic)
+    original_ic.outputs.clear()
+
+    # Ok we're now at the security checkpoint, let's drop everything
+    original_ic.set_ascii_cmd("inv")
+    original_ic.waiting = False
+    original_ic.run()
+    output_data = ''.join(map(lambda c: chr(c), original_ic.outputs)).split('\n')
+    original_ic.outputs.clear()
+
+    possible_items = []
+    for line in output_data:
+        if line.startswith("- "):
+            item = line.replace("- ", "")
+            possible_items.append(item)
+            original_ic.set_ascii_cmd(f"drop {item}")
+            print_outputs(original_ic)
+
+    # Ok, now we have to find the right combo ...
+    for r in range(1, len(possible_items) + 1):
+        for combo in itertools.combinations(possible_items, r):
+            ic_copy = original_ic.clone()
+            combo_list = list(combo)
+            for i in combo_list:
+                ic_copy.set_ascii_cmd(f"take {i}")
+                ic_copy.waiting = False
+                ic_copy.run()
+                print_outputs(ic_copy)
+            ic_copy.set_ascii_cmd(
+                f"{(set(security_checkpoint.doors) - {dir_opposites[security_checkpoint.path[-1]]}).pop()}")
+            ic_copy.waiting = False
+            ic_copy.run()
+            output_data = ''.join(map(lambda c: chr(c), ic_copy.outputs)).split('\n')
+            ic_copy.outputs.clear()
+
+            success = True
+            for line in output_data:
+                if "and you are ejected back to the checkpoint." in line:
+                    success = False
+                    break
+            if success:
+                for line in output_data:
+                    print(line)
+                print(f"Working combo: {combo_list}")
+                return ic_copy
+    raise Exception("Could not find a way through security checkpoint")
+
+
 def collect_items(ic, items):
     for item, room in items.items():
         max_index = len(room.path) - 1
